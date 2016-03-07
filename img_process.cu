@@ -49,7 +49,7 @@ __global__ void convert_to_luv_gpu_kernel(float *in_img, float *out_img, int n, 
 	float un = 0.197833f;
 	float vn = 0.468331f;
 
-	lt = lTable_const[y * 1024];
+	lt = lTable_const[static_cast<int>((y*1024))];
 	l = lt; z = 1/(x + (15 * y) + (3 * z) + (float)1e-35);
 	u = lt * (13 * 4 * x * z - 13 * un) - minu;
 	v = lt * (13 * 9 * y * z - 13 * vn) - minv;
@@ -105,18 +105,18 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool
 	cv::Mat res_img(in_img.rows, in_img.cols, CV_32FC3);
 	int n = in_img.rows * in_img.cols;
 
-	float *dev_input_img, *dev_output_img;
+	unsigned char *dev_input_img, *dev_output_img;
 	unsigned int img_size_total = in_img.step * in_img.rows;
 	cudaError_t cuda_ret;
 
 	//Allocate device memory
-	cuda_ret = cudaMalloc(&dev_input_img, img_size_total * sizeof(float));
+	cuda_ret = cudaMalloc(&dev_input_img, img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
-	cuda_ret = cudaMalloc(&dev_output_img, img_size_total * sizeof(float));
+	cuda_ret = cudaMalloc(&dev_output_img, img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
 
 	//Copy data from OpenCV input image to device memory
-	cuda_ret = cudaMemcpy(dev_input_img, in_img.ptr(), img_size_total * sizeof(float), cudaMemcpyHostToDevice);
+	cuda_ret = cudaMemcpy(dev_input_img, in_img.ptr<unsigned char>(0), img_size_total, cudaMemcpyHostToDevice);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy to device memory");
 
 	//Specify a reasonable block size
@@ -132,7 +132,7 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool
  	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");
 
 	//Copy back data from destination device meory to OpenCV output image
-	cuda_ret = cudaMemcpy(res_img.ptr(), dev_output_img, img_size_total * sizeof(float), cudaMemcpyDeviceToHost);
+	cuda_ret = cudaMemcpy(res_img.ptr<unsigned char>(0), dev_output_img, img_size_total, cudaMemcpyDeviceToHost);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
 
 	//Free the device memory
@@ -179,23 +179,25 @@ void img_process::rgb2luv(cv::Mat& in_img, cv::Mat& out_img)
 
 void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 {
-	CV_Assert(in_img.type() == CV_32FC3);
+	CV_Assert(in_img.type() == CV_8UC3);
 	float nrm =  1.0f/255;
 	rgb2luv_setup_gpu(nrm);
 
 	cv::Mat res_img(in_img.rows, in_img.cols, CV_32FC3);
-	float *dev_input_img, *dev_output_img;
+	int n = in_img.rows * in_img.cols;
+
+	unsigned char *dev_input_img, *dev_output_img;
 	unsigned int img_size_total = in_img.step * in_img.rows;
 	cudaError_t cuda_ret;
 
 	//Allocate device memory
-	cuda_ret = cudaMalloc(&dev_input_img, img_size_total * sizeof(float));
+	cuda_ret = cudaMalloc(&dev_input_img, img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
-	cuda_ret = cudaMalloc(&dev_output_img, img_size_total * sizeof(float));
+	cuda_ret = cudaMalloc(&dev_output_img, img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
 
 	//Copy data from OpenCV input image to device memory
-	cuda_ret = cudaMemcpy(dev_input_img, in_img.ptr(), img_size_total * sizeof(float), cudaMemcpyHostToDevice);
+	cuda_ret = cudaMemcpy(dev_input_img, in_img.ptr<unsigned char>(0), img_size_total, cudaMemcpyHostToDevice);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy to device memory");
 
 	//Specify a reasonable block size
@@ -211,7 +213,7 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
  	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");
 
 	//Copy back data from destination device meory to OpenCV output image
-	cuda_ret = cudaMemcpy(res_img.ptr(), dev_output_img, img_size_total * sizeof(float), cudaMemcpyDeviceToHost);
+	cuda_ret = cudaMemcpy(res_img.ptr<unsigned char>(0), dev_output_img, img_size_total, cudaMemcpyDeviceToHost);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
 
 	//Free the device memory

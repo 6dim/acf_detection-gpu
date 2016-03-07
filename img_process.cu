@@ -1,7 +1,7 @@
 #include "img_process.hpp"
 
 //#define __OUTPUT_PIX__
-#define BLOCK_SIZE 128
+#define BLOCK_SIZE 32 
 __constant__ __device__ float lTable_const[1064];
 __constant__ __device__ float mr_const[3];
 __constant__ __device__ float mg_const[3];
@@ -104,12 +104,10 @@ void img_process::rgb2luv(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool use
 void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB)
 {
 	CV_Assert(in_img.type() == CV_32FC3);
-	float nrm =  1.0f/255;
 	rgb2luv_setup_gpu(nrm);
 
 	cv::Mat res_img(in_img.rows, in_img.cols, CV_32FC3);
 	out_img = res_img;
-	int n = in_img.rows * in_img.cols;
 
 	unsigned char *dev_input_img;
 	float *dev_output_img;
@@ -193,7 +191,6 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 
 	cv::Mat res_img(in_img.rows, in_img.cols, CV_32FC3);
 	out_img = res_img;
-	int n = in_img.rows * in_img.cols;
 
 	unsigned char *dev_input_img;
 	float *dev_output_img;

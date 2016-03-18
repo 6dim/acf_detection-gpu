@@ -8,7 +8,7 @@ find_package( CUDA QUIET REQUIRED )
 
 #add_executable(test ${SOURCES})
 
-add_executable( acf_detection main.cpp  acf_detect.cpp  img_process.cu  acf_detect.hpp img_process.hpp cartToPolar.hpp)
+cuda_add_executable( acf_detection main.cpp  acf_detect.cpp  img_process.cu  acf_detect.hpp img_process.hpp cartToPolar.hpp)
 
 target_link_libraries(acf_detection ${OpenCV_LIBS} )
 

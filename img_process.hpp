@@ -27,7 +27,7 @@ struct bb_xma
 	float y; /// top left row #
 	float ht;  /// height of bb
 	float wd;  /// width of bb
-	float wt;  /// weight 
+	float wt;  /// weight
 };
 
 struct more_than_key
@@ -43,13 +43,14 @@ struct more_than_key
 class img_process
 {
 public:
-	img_process();	
+	img_process();
 	virtual ~img_process();
 	void rgb2luv(cv::Mat& in_img, cv::Mat& out_img); /// this function converts a uint8 array (3 channels to CV32F array of luv, NOTE that channels are mapped in order b->R, g->G, r->B)
-	void rgb2luv(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB = false); /// this function converts a CV32F (3 channels to CV32F array of luv), NOTE THAT THE CHANNELS ARE 1-1 MAPPED (R->R, G->G, B->B)	
+	void rgb2luv(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB = false); /// this function converts a CV32F (3 channels to CV32F array of luv), NOTE THAT THE CHANNELS ARE 1-1 MAPPED (R->R, G->G, B->B)
 
-	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img); /// this function converts a uint8 array (3 channels to CV32F array of luv, NOTE that channels are mapped in order b->R, g->G, r->B)
-	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB = false); /// this function converts a CV32F (3 channels to CV32F array of luv), NOTE THAT THE CHANNELS ARE 1-1 MAPPED (R->R, G->G, B->B)
+	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img);
+	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB = false);
+	void free_gpu(void);
 
 	static void imResample(cv::Mat& in_img, cv::Mat& out_img, int dheight, int dwidth, float r = 1.0f ); /// bilinear interpolation methods to resize image
 	static void imResample_array_int2lin(float* in_img, float* out_img, int d, int org_ht, int org_wd, int dst_ht, int dst_wd, float r=1.0f);
@@ -65,9 +66,13 @@ private:
 	void rgb2luv_setup_gpu(float nrm);
 	float minu, minv, un, vn, mr[3], mg[3], mb[3];
 	float lTable[1064];
+
+	unsigned char *dev_input_img; /* pointer to input image on gpu */
+	float *dev_output_img; /* pointer to output image on gpu */
+
 	static void resampleCoef(int ha, int hb, int &n, int *&yas, int *&ybs, float *&wts, int bd[2], int pad=0);
-	static void ConvTri1X(float* I, float* O, int wd, float p = 7.6f, int s = 1);	
+	static void ConvTri1X(float* I, float* O, int wd, float p = 7.6f, int s = 1);
 };
 
 #endif
-	
+

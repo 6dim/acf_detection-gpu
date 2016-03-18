@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 		}
 		counter++;
 	}
-	
+
 	cout << "frames in total = " << counter << endl;
 	long totalFrameNumber = capture.get(CV_CAP_PROP_FRAME_COUNT);
 	int frame_height = capture.get(CV_CAP_PROP_FRAME_HEIGHT);
@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 	{
 		cout << "End with frame" << frameToStop << endl;
 	}
-	
+
 	double rate = capture.get(CV_CAP_PROP_FPS);
 	cout << "Frame Ratio FPS:" << rate << endl;
 
@@ -72,24 +72,24 @@ int main(int argc, char* argv[])
 
 	int delay = 1;          // 1000 / rate;
 	long currentFrame = frameToStart;
-	
+
 	namedWindow("pedestrian detector", 1);
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
 	unsigned img_height = 480;
 	unsigned img_width  = 640;
-	acf_detect acf(Size(img_width, img_height));	
+	acf_detect acf(Size(img_width, img_height));
 	img_process im_proc;
-	
-	
-	
+
+
+
 	Mat frame;
-	
+
 	while (!stop)
 	{
 		Mat img, img_luv;
@@ -104,18 +104,18 @@ int main(int argc, char* argv[])
 
 		double t = (double)getTickCount();
 		/////////////////////////////////////////////////////////////////////////////////////
-		img = frame; 
+		img = frame;
 		if (!img.data)
 		  {
 			  cout << "Image  is not loaded properly" << endl;  //handle failing images
-			  continue;                  
-		  }    
-		  im_proc.rgb2luv(img, img_luv);		
+			  continue;
+		  }
+		  im_proc.rgb2luv(img, img_luv);
 		  acf(img_luv, bbs);
-		
-		
-		
-		
+
+
+
+
 		///////////////////////////////////////////////////////////////////////////////////////
 		t = (double)getTickCount() - t;
 		printf("detection time = %gms\n", t*1000. / cv::getTickFrequency());
@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
 				  Rect r(bbs[j].x,bbs[j].y, bbs[j].wd ,bbs[j].ht);
 				  cout << "rectangle topleft " << r.tl() << " bottom right " << r.br() << endl;
 					rectangle(img,r.tl() , r.br(),  cv::Scalar(0, 255, 0), 1);
-			
+
 			//rectangle(Mat& img, Rect rec, const Scalar& color, int thickness=1, int lineType=8, int shift=0 )
 			}
 		imshow("pedestrian detector", frame);
@@ -151,7 +151,9 @@ int main(int argc, char* argv[])
 
 	}
 
-capture.release();
+	im_proc.free_gpu();
+
+	capture.release();
 	waitKey(0);
 	return 0;
 }

@@ -1,7 +1,8 @@
 #include "img_process.hpp"
 
 //#define __OUTPUT_PIX__
-#define BLOCK_SIZE 32 
+
+#define BLOCK_SIZE 32
 __constant__ __device__ float lTable_const[1064];
 __constant__ __device__ float mr_const[3];
 __constant__ __device__ float mg_const[3];
@@ -104,49 +105,57 @@ void img_process::rgb2luv(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool use
 void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB)
 {
 	CV_Assert(in_img.type() == CV_32FC3);
-	rgb2luv_setup_gpu(nrm);
+
+	static int cnt;
+	if (cnt == 0) {
+		rgb2luv_setup_gpu(nrm);
+		cnt++;
+	}
 
 	cv::Mat res_img(in_img.rows, in_img.cols, CV_32FC3);
 	out_img = res_img;
 
-	unsigned char *dev_input_img;
-	float *dev_output_img;
+	cudaError_t cuda_ret;
+#if 0
+	unsigned char *dev_input_img; /* input image is of type 8UC3 (8 bit unsigned 3 channel) */
+	float *dev_output_img; /* output image is of type 32FC3 (32 bit float 3 channel) */
+#endif
+
 	unsigned int in_img_size_total = in_img.step * in_img.rows;
 	unsigned int out_img_size_total = res_img.step * res_img.rows;
-	cudaError_t cuda_ret;
 
-	//Allocate device memory
+	/* Allocate required memory on GPU device for both input and output images */
 	cuda_ret = cudaMalloc((void **)&dev_input_img, in_img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
 	cuda_ret = cudaMalloc((void **)&dev_output_img, out_img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
 
-	//Copy data from OpenCV input image to device memory
+	/* Copy data from OpenCV input image to device memory */
 	cuda_ret = cudaMemcpy(dev_input_img, in_img.ptr<unsigned char>(0), in_img_size_total, cudaMemcpyHostToDevice);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy to device memory");
 
-	//Specify a reasonable block size
+	/* Specify a reasonable block size */
 	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
 
-	//Calculate grid size to cover the whole image
-	const dim3 dim_grid(((in_img.cols - 1) / BLOCK_SIZE) + 1, ((in_img.rows - 1) / BLOCK_SIZE) + 1);
+	/* Calculate grid size to cover the whole image */
+	const dim3 dim_grid(ceil(in_img.cols / BLOCK_SIZE), ceil(in_img.rows / BLOCK_SIZE));
 
 	convert_to_luv_gpu_kernel<<<dim_grid, dim_block>>>(dev_input_img, dev_output_img, in_img.cols, in_img.rows, useRGB);
 
-	//Synchronize to check for any kernel launch errors
+	/* Synchronize to check for any kernel launch errors */
 	cuda_ret = cudaDeviceSynchronize();
  	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");
 
-	//Copy back data from destination device meory to OpenCV output image
+	/* Copy back data from device memory to OpenCV output image */
 	cuda_ret = cudaMemcpy(res_img.ptr<float>(0), dev_output_img, out_img_size_total, cudaMemcpyDeviceToHost);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
-
-	//Free the device memory
+#if 0
+	/* Free the device memory */
 	cuda_ret = cudaFree(dev_input_img);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 	cuda_ret = cudaFree(dev_output_img);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
-
+#endif
 	return;
 }
 
@@ -187,50 +196,79 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 {
 	CV_Assert(in_img.type() == CV_8UC3);
 	float nrm =  1.0f/255;
-	rgb2luv_setup_gpu(nrm);
+
+	static int cnt;
+	if (cnt == 0) {
+		rgb2luv_setup_gpu(nrm);
+	}
 
 	cv::Mat res_img(in_img.rows, in_img.cols, CV_32FC3);
 	out_img = res_img;
 
-	unsigned char *dev_input_img;
-	float *dev_output_img;
+	cudaError_t cuda_ret;
+#if 0
+	unsigned char *dev_input_img; /* input image is of type 8UC3 (8 bit unsigned 3 channel) */
+	float *dev_output_img; /* output image is of type 32FC3 (32 bit float 3 channel) */
+#endif
+
 	unsigned int in_img_size_total = in_img.step * in_img.rows;
 	unsigned int out_img_size_total = res_img.step * res_img.rows;
-	cudaError_t cuda_ret;
 
-	//Allocate device memory
-	cuda_ret = cudaMalloc((void **)&dev_input_img, in_img_size_total);
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
-	cuda_ret = cudaMalloc((void **)&dev_output_img, out_img_size_total);
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
+	if (cnt == 0) {
+		/* Allocate required memory on GPU device for both input and output images */
+		cuda_ret = cudaMalloc((void **)&dev_input_img, in_img_size_total);
+	 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
+		cuda_ret = cudaMalloc((void **)&dev_output_img, out_img_size_total);
+	 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate device memory");
 
-	//Copy data from OpenCV input image to device memory
+		cnt++;
+	}
+
+	/* Copy data from OpenCV input image to device memory */
 	cuda_ret = cudaMemcpy(dev_input_img, in_img.ptr<unsigned char>(0), in_img_size_total, cudaMemcpyHostToDevice);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy to device memory");
 
-	//Specify a reasonable block size
+	/* Specify a reasonable block size */
 	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
 
-	//Calculate grid size to cover the whole image
-	const dim3 dim_grid(((in_img.cols - 1) / BLOCK_SIZE) + 1, ((in_img.rows - 1) / BLOCK_SIZE) + 1);
+	/* Calculate grid size to cover the whole image */
+	const dim3 dim_grid(ceil(in_img.cols / BLOCK_SIZE), ceil(in_img.rows / BLOCK_SIZE));
 
 	convert_to_luv_gpu_kernel<<<dim_grid, dim_block>>>(dev_input_img, dev_output_img, in_img.cols, in_img.rows, false);
 
-	//Synchronize to check for any kernel launch errors
+	/* Synchronize to check for any kernel launch errors */
 	cuda_ret = cudaDeviceSynchronize();
  	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");
 
-	//Copy back data from destination device meory to OpenCV output image
+	/* Copy back data from device memory to OpenCV output image */
 	cuda_ret = cudaMemcpy(res_img.ptr<float>(0), dev_output_img, out_img_size_total, cudaMemcpyDeviceToHost);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
 
-	//Free the device memory
+#if 0
+	/* Free the device memory */
 	cuda_ret = cudaFree(dev_input_img);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 	cuda_ret = cudaFree(dev_output_img);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+#endif
 
 	return;
+}
+
+void img_process::free_gpu(void)
+{
+	/* Free the device memory */
+	if (dev_input_img) {
+		cuda_ret = cudaFree(dev_input_img);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+ 		dev_input_img = NULL;
+	}
+
+	if (dev_output_img) {
+		cuda_ret = cudaFree(dev_output_img);
+	 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	 	dev_output_img = NULL;
+	 }
 }
 
 void img_process::rgb2luv_setup(float nrm)
@@ -477,7 +515,7 @@ void img_process::imResample(cv::Mat& in_img, cv::Mat& out_img, int dheight, int
 				//cout << "hn = " << hn << " y1 = " << y1 << " m = " << m << endl;
 				if(m==1)
 				{
-					for(;x < org_wd; ++x)
+					for(;x < orgdst_ht_wd; ++x)
 					{
 						C[x] = A0[x*d] * ywts[y1];
 					}
@@ -607,7 +645,6 @@ void img_process::imResample(cv::Mat& in_img, cv::Mat& out_img, int dheight, int
 /// note that for the input array, the different color channels are interleaved, but for the output array, the memory channels are separated
 void img_process::imResample_array_int2lin(float* in_img, float* out_img, int d, int org_ht, int org_wd, int dst_ht, int dst_wd, float r )
 {
-
 	int hn, wn, x, /*x1,*/ y, z, xa, /*xb,*/ ya, yb, y1 /* xma added to convert from col major to row major*/;
 	float *A0, *A1, *A2, *A3, *B0, wt, wt1;
 	/// xma prepare 128-bit aligned array C of org height+4 and set boundary values to 0
@@ -757,6 +794,8 @@ void img_process::imResample_array_int2lin(float* in_img, float* out_img, int d,
 					}
 				}
 			}
+
+
 			// resample along x direction (B -> C)
 			if( org_wd==dst_wd*2 )
 			{

@@ -2491,12 +2491,16 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 
 
-__global__ void conv_tri_kernel(float *dev_I, float *dev_O, int wd, int ht, float nrm, float p)
+__global__ void conv_tri_kernel(float *dev_I, float *dev_O
+								float *T0, float *T1, float *T2,
+								int wd, int ht, float nrm, float p)
 {
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
 	unsigned int y_pos = threadIdx.y + (blockDim.y * blockIdx.y);
 
 	if ((x_pos < dst_wd) && (y_pos < dst_ht)) {
+
+		float *It0, *It1, *It2, *Im0, *Im1, *Im2, *Ib0, *Ib1, *Ib2, *Ot0, *Ot1, *Ot2;
 
 		It0 = Im0 = Ib0 = dev_I + (y_pos * wd) + (0 * ht * wd);
 		It1 = Im1 = Ib1 = dev_I + (y_pos * wd) + (1 * ht * wd);
@@ -2551,6 +2555,8 @@ void img_process::ConvTri1_gpu(float* I, float* O, int ht, int wd, int dim, floa
     const float nrm = 1.0f / ((p + 2) * (p + 2));
     cudaError_t cuda_ret;
 
+    float *dev_I, *dev_O, *dev_T0, *dev_T1, *dev_T2;
+
  	cuda_ret = cudaMalloc((void **)&dev_I, sizeof(float) * (ht * wd * dim));
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
  	cuda_ret = cudaMalloc((void **)&dev_O, sizeof(float) * (ht * wd * dim));
@@ -2571,7 +2577,7 @@ void img_process::ConvTri1_gpu(float* I, float* O, int ht, int wd, int dim, floa
 	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
 	const dim3 dim_grid(ceil(wd / BLOCK_SIZE), ceil(ht / BLOCK_SIZE));
 
-	conv_tri_kernel<<<dim_grid, dim_block>>>(dev_I, dev_O, wd, ht, nrm, p);
+	conv_tri_kernel<<<dim_grid, dim_block>>>(dev_I, dev_O, dev_T0, dev_T1, dev_T2, wd, ht, nrm, p);
 
 	cuda_ret = cudaDeviceSynchronize();
 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");

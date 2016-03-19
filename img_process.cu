@@ -713,27 +713,21 @@ __global__ void resample_chnl_lin_gpu_kernel3(float *dev_in_img, float *dev_out_
 		B10 = B1 + (yb * dst_wd);
 		B20 = B2 + (yb * dst_wd);
 
-		int x = 0;
+		int x = x_pos;
 
 		// resample along y direction
 		if (org_ht == 2 * dst_ht) {
-			for (x = 0; x < org_wd; ++x) {
 				dev_C0_tmp[x] = A00[x] + A01[x];
 				dev_C1_tmp[x] = A10[x] + A11[x];
 				dev_C2_tmp[x] = A20[x] + A21[x];
-			}
 	    } else if (org_ht == 3 * dst_ht) {
-			for(x = 0; x < org_wd; ++x) {
 				dev_C0_tmp[x] = A00[x] + A01[x] + A02[x];
 				dev_C1_tmp[x] = A10[x] + A11[x] + A12[x];
 				dev_C2_tmp[x] = A20[x] + A21[x] + A22[x];
-			}
 		} else if (org_ht == 4 * dst_ht) {
-			for(x = 0; x < org_wd; ++x) {
 				dev_C0_tmp[x] = A00[x] + A01[x] + A02[x] + A03[x];
 				dev_C1_tmp[x] = A10[x] + A11[x] + A12[x] + A13[x];
 				dev_C2_tmp[x] = A20[x] + A21[x] + A22[x] + A23[x];
-			}
 
 		}
 
@@ -742,18 +736,14 @@ __global__ void resample_chnl_lin_gpu_kernel3(float *dev_in_img, float *dev_out_
 
 		// resample along x direction (B -> C)
 		if (org_wd == 2 * dst_wd) {
-			for (x = 0; x < dst_wd; x++) {
 				B00[x]= (dev_C0_tmp[2 * x] + dev_C0_tmp[(2 * x) + 1]) * (r / 2);
 				B10[x]= (dev_C1_tmp[2 * x] + dev_C1_tmp[(2 * x) + 1]) * (r / 2);
 				B20[x]= (dev_C2_tmp[2 * x] + dev_C2_tmp[(2 * x) + 1]) * (r / 2);
-			}
 
 		} else if (org_wd == 3 * dst_wd) {
-			for (x = 0; x < dst_wd; x++) {
 				B00[x] = (dev_C0_tmp[3 * x] + dev_C0_tmp[(3 * x) + 1] + dev_C0_tmp[(3 * x) + 2]) * (r / 3);
 				B10[x] = (dev_C1_tmp[3 * x] + dev_C1_tmp[(3 * x) + 1] + dev_C1_tmp[(3 * x) + 2]) * (r / 3);
 				B20[x] = (dev_C2_tmp[3 * x] + dev_C2_tmp[(3 * x) + 1] + dev_C2_tmp[(3 * x) + 2]) * (r / 3);
-			}
 
 		} else if (org_wd == 4 * dst_wd) {
 			for (x = 0; x < dst_wd; x++) {
@@ -2378,6 +2368,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 		//cout << "here6\n";
 
 	} else {
+	cout << "HELPPPPPPPPPPPPPPPPPPPPPPPP222222222222222222===================================\n\n";
 		cuda_ret = cudaMalloc((void **)&xas_const, sizeof(int) * wn);
  		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
  		cuda_ret = cudaMalloc((void **)&xbs_const, sizeof(int) * wn);
@@ -2491,6 +2482,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 
 
+
 __global__ void conv_tri_kernel(float *dev_I, float *dev_O,
 								float *T0, float *T1, float *T2,
 								int wd, int ht, float nrm, float p)
@@ -2501,6 +2493,8 @@ __global__ void conv_tri_kernel(float *dev_I, float *dev_O,
 	if ((x_pos < wd) && (y_pos < ht)) {
 
 		float *It0, *It1, *It2, *Im0, *Im1, *Im2, *Ib0, *Ib1, *Ib2, *Ot0, *Ot1, *Ot2;
+		float *T00, *T10, *T20;
+
 
 		It0 = Im0 = Ib0 = dev_I + (y_pos * wd) + (0 * ht * wd);
 		It1 = Im1 = Ib1 = dev_I + (y_pos * wd) + (1 * ht * wd);
@@ -2509,6 +2503,10 @@ __global__ void conv_tri_kernel(float *dev_I, float *dev_O,
 		Ot0 = dev_O + (y_pos * wd) + (0 * ht * wd);
 		Ot1 = dev_O + (y_pos * wd) + (1 * ht * wd);
 		Ot2 = dev_O + (y_pos * wd) + (2 * ht * wd);
+
+		T00 = T0 + (y_pos * wd);
+		T10 = T1 + (y_pos * wd);
+		T20 = T2 + (y_pos * wd);
 
 		if(y_pos > 0) { /// not the first row, let It point to previous row
 			It0 -= wd;
@@ -2521,24 +2519,24 @@ __global__ void conv_tri_kernel(float *dev_I, float *dev_O,
 			Ib2 += wd;
 		}
 
-		T0[x_pos] = nrm * (It0[x_pos] + (p * Im0[x_pos]) + Ib0[x_pos]);
-		T1[x_pos] = nrm * (It1[x_pos] + (p * Im1[x_pos]) + Ib1[x_pos]);
-		T2[x_pos] = nrm * (It2[x_pos] + (p * Im2[x_pos]) + Ib2[x_pos]);
+		T00[x_pos] = nrm * (It0[x_pos] + (p * Im0[x_pos]) + Ib0[x_pos]);
+		T10[x_pos] = nrm * (It1[x_pos] + (p * Im1[x_pos]) + Ib1[x_pos]);
+		T20[x_pos] = nrm * (It2[x_pos] + (p * Im2[x_pos]) + Ib2[x_pos]);
 
 		__syncthreads();
 
 		if (x_pos == 0) {
-			Ot0[x_pos] = ((1 + p) * T0[x_pos]) + T0[x_pos + 1];
-			Ot1[x_pos] = ((1 + p) * T1[x_pos]) + T1[x_pos + 1];
-			Ot2[x_pos] = ((1 + p) * T2[x_pos]) + T2[x_pos + 1];
-		} else if (xpos = wd - 1) {
-			Ot0[x_pos] = T0[x_pos - 1] + ((1 + p) * T0[x_pos]);
-			Ot1[x_pos] = T1[x_pos - 1] + ((1 + p) * T1[x_pos]);
-			Ot2[x_pos] = T2[x_pos - 1] + ((1 + p) * T2[x_pos]);
+			Ot0[x_pos] = ((1 + p) * T00[x_pos]) + T00[x_pos + 1];
+			Ot1[x_pos] = ((1 + p) * T10[x_pos]) + T10[x_pos + 1];
+			Ot2[x_pos] = ((1 + p) * T20[x_pos]) + T20[x_pos + 1];
+		} else if (x_pos == wd - 1) {
+			Ot0[x_pos] = T00[x_pos - 1] + ((1 + p) * T00[x_pos]);
+			Ot1[x_pos] = T10[x_pos - 1] + ((1 + p) * T10[x_pos]);
+			Ot2[x_pos] = T20[x_pos - 1] + ((1 + p) * T20[x_pos]);
 		} else {
-			Ot0[x_pos] = T0[x_pos - 1] + (p * T0[x_pos]) + T0[x_pos + 1];
-			Ot1[x_pos] = T1[x_pos - 1] + (p * T1[x_pos]) + T1[x_pos + 1];
-			Ot2[x_pos] = T2[x_pos - 1] + (p * T2[x_pos]) + T2[x_pos + 1];
+			Ot0[x_pos] = T00[x_pos - 1] + (p * T00[x_pos]) + T00[x_pos + 1];
+			Ot1[x_pos] = T10[x_pos - 1] + (p * T10[x_pos]) + T10[x_pos + 1];
+			Ot2[x_pos] = T20[x_pos - 1] + (p * T20[x_pos]) + T20[x_pos + 1];
 		}
 
 
@@ -2559,11 +2557,11 @@ void img_process::ConvTri1_gpu(float* I, float* O, int ht, int wd, int dim, floa
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
  	cuda_ret = cudaMalloc((void **)&dev_O, sizeof(float) * (ht * wd * dim));
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 	cuda_ret = cudaMalloc((void **)&dev_T0, sizeof(float) * wd);
+ 	cuda_ret = cudaMalloc((void **)&dev_T0, sizeof(float) * ht * wd);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 	cuda_ret = cudaMalloc((void **)&dev_T1, sizeof(float) * wd);
+ 	cuda_ret = cudaMalloc((void **)&dev_T1, sizeof(float) * ht * wd);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 	cuda_ret = cudaMalloc((void **)&dev_T2, sizeof(float) * wd);
+ 	cuda_ret = cudaMalloc((void **)&dev_T2, sizeof(float) * ht * wd);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
  	cudaDeviceSynchronize();
 

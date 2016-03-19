@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 			cout << "Video Reading Failure" << endl;
 
 			im_proc.free_gpu();
-			return 0;
+			return -1;
 		}
 
 		cout << endl << "Now detect frame " << currentFrame << endl;

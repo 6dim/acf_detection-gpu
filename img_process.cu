@@ -1097,7 +1097,7 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		xwts[x] *= r;
 
 	memset(out_img, 0, sizeof(float) * dst_ht * dst_wd * n_channels);
- 	float *dev_out_rsmpl_img;
+ 	float *dev_out_rsmpl_img, *dev_C_temp;
 
 	cudaError_t cuda_ret;
 

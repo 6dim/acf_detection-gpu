@@ -1,5 +1,5 @@
 #include "img_process.hpp"
-
+#include <fstream>
 //#define __OUTPUT_PIX__
 
 #define BLOCK_SIZE 32
@@ -888,6 +888,20 @@ void img_process::imResample_array_int2lin(float* in_img, float* out_img, int d,
 	if( org_ht==3*dst_ht ) r/=3;
 	if( org_ht==4*dst_ht ) r/=4;
 	r/=float(1+1e-6);
+	
+	/*static int cnt;
+	if (cnt == 0) {
+	ofstream temp;
+	temp.open("xas");
+	if (dst_ht == 572) {
+	cout << "HELL====================================\n";
+	for (int j = 0; j < hn; j++)
+		temp << yas[j] << "\n";
+	temp.close();
+	cnt++;
+	}
+	}*/
+	
 	for( x=0; x<wn; x++ )
 	{
 		xwts[x] *= r;
@@ -1114,10 +1128,16 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	/// horizontal coef
 	resampleCoef( org_ht, dst_ht, hn, yas, ybs, ywts, ybd, 0 );
 
+	//cout << org_ht << "\n";
+	//cout << dst_ht << "\n";
+	//cout << hn << "\n";
+	
 	if (org_ht == 2 * dst_ht) r /= 2;
 	if (org_ht == 3 * dst_ht) r /= 3;
 	if (org_ht == 4 * dst_ht) r /= 4;
 
+	cout << "here1\n";
+	
 	r /= float(1 + 1e-6);
 
 	for (int x = 0; x < wn; x++)
@@ -1146,6 +1166,9 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	cuda_ret = cudaMalloc((void **)&ywts_const, sizeof(float) * hn);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
 
+	cuda_ret = cudaDeviceSynchronize();
+	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+	
 	cuda_ret = cudaMemcpy(yas_const, yas, sizeof(int) * hn, cudaMemcpyHostToDevice);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
 	cuda_ret = cudaMemcpy(ybs_const, ybs, sizeof(int) * hn, cudaMemcpyHostToDevice);
@@ -1153,17 +1176,33 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	cuda_ret = cudaMemcpy(ywts_const, ywts, sizeof(float) * hn, cudaMemcpyHostToDevice);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
 
+	cuda_ret = cudaDeviceSynchronize();
+	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+	
+	cout << "here2\n";
+
  	/* choose grid to cover entire output image */
 	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
 	const dim3 dim_grid(ceil(dst_wd / BLOCK_SIZE), ceil(dst_ht / BLOCK_SIZE));
 
+	cout << "here3\n";
+	
 
-	if ((org_ht == dst_ht) || (org_ht == 2 * dst_ht) || (org_ht == 3 * dst_ht) || (org_ht != 4 * dst_ht)) {
+	if ((org_ht == dst_ht) || (org_ht == 2 * dst_ht) || (org_ht == 3 * dst_ht) || (org_ht == 4 * dst_ht)) {
 		for (int n = 0; n < n_channels; n++) {
 			resample_chnl_gpu_kernel1<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
 															   org_wd, org_ht, dst_wd, dst_ht,
 															   n_channels, n, r, yas_const, ybs_const);
 		}
+		
+		cout << "here5\n";
+	
+		/* wait for all streams to finish computing */
+		cuda_ret = cudaDeviceSynchronize();
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+
+		cout << "here6\n";
+	
 	} else {
 		cuda_ret = cudaMalloc((void **)&xas_const, sizeof(int) * wn);
  		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
@@ -1172,6 +1211,9 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
  		cuda_ret = cudaMalloc((void **)&xwts_const, sizeof(float) * wn);
  		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
 
+		cuda_ret = cudaDeviceSynchronize();
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+
 		cuda_ret = cudaMemcpy(xas_const, xas, sizeof(int) * wn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
 		cuda_ret = cudaMemcpy(xbs_const, xbs, sizeof(int) * wn, cudaMemcpyHostToDevice);
@@ -1179,35 +1221,57 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		cuda_ret = cudaMemcpy(xwts_const, xwts, sizeof(float) * wn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
 
+		cuda_ret = cudaDeviceSynchronize();
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 
+
+		cout << "here7\n";
+	
 		for (int n = 0; n < n_channels; n++) {
-			resample_chnl_gpu_kernel<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
+			resample_chnl_gpu_kernel2<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
 															  org_wd, org_ht, dst_wd, dst_ht,
 															  n_channels, n, r,
 															  hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
 															  xas_const, xbs_const, xwts_const,
 															  yas_const, ybs_const, ywts_const);
+															  
+		cout << "here8\n";
+	
+		/* wait for all streams to finish computing */
+		cuda_ret = cudaDeviceSynchronize();
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+	
+		
 		}
-	}
-
-	/* wait for all streams to finish computing */
-	cuda_ret = cudaDeviceSynchronize();
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");
-
-	cuda_ret = cudaMemcpy(out_img, dev_out_rsmpl_img, out_img_size_total, cudaMemcpyDeviceToHost);
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
-
- 	cuda_ret = cudaFree(dev_out_rsmpl_img);
-	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
-
-	if ((org_ht != dst_ht) && (org_ht != 2 * dst_ht) && (org_ht != 3 * dst_ht) && (org_ht != 4 * dst_ht)) {
+		
+		cout << "here9\n";
+	
 		cuda_ret = cudaFree(xas_const);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 		cuda_ret = cudaFree(xbs_const);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 		cuda_ret = cudaFree(xwts_const);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+
+		cuda_ret = cudaDeviceSynchronize();
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+
+
 	}
+
+	cout << "here10\n";
+	
+	cuda_ret = cudaMemcpy(out_img, dev_out_rsmpl_img, out_img_size_total, cudaMemcpyDeviceToHost);
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
+
+	cuda_ret = cudaDeviceSynchronize();
+	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+
+	cout << "here11\n";
+	
+ 	cuda_ret = cudaFree(dev_out_rsmpl_img);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+
 
 	cuda_ret = cudaFree(yas_const);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
@@ -1216,6 +1280,11 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	cuda_ret = cudaFree(ywts_const);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 
+	cuda_ret = cudaDeviceSynchronize();
+	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+
+	cout << "here12\n";
+	
 	delete[] xas;
 	delete[] xbs;
 	delete[] xwts;

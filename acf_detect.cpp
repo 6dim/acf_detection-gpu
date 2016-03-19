@@ -1,4 +1,5 @@
 #include "acf_detect.hpp"
+#include <fstream>
 
 #define __USE_ACOS__
 //#define __PIX_OUT__
@@ -169,7 +170,16 @@ void acf_detect::operator()(cv::Mat& img, vector<bb_xma>& bbs, float *luv_img_gp
 		int s_height = height / shrink;
 		int s_width  = width / shrink;
 		vector<bb_xma> bbs_sc; /// current scale bounding boxes
-		img_process::imResample_array_int2lin_gpu(luv_img_gpu, pix_ptr, img.channels(),img.rows, img.cols, height, width);
+		//printf("%d\n", i);
+		if (i == 0)
+			img_process::imResample_array_int2lin_gpu(luv_img_gpu, pix_ptr, img.channels(),img.rows, img.cols, height, width);
+		else
+			img_process::imResample_array_int2lin(img_org, pix_ptr, img.channels(),img.rows, img.cols, height, width);
+		//ofstream file;
+		//file.open("pix_ptr_gpu");
+		//for (int abc = 0; abc < scales[0].height; abc++)
+		//	file << pix_ptr[abc] << "\n";
+		//file.close();
 		chnsCompute(pix_ptr, chnsPyramid, sz);
 		acfDetect(chnsPyramid, s_height, s_width, nChannels, bbs_sc);
 		for(vector<bb_xma>::iterator ii = bbs_sc.begin(); ii != bbs_sc.end(); ++ii)
@@ -287,6 +297,7 @@ void acf_detect::chnsCompute(float* pix_array, float* chnsPyramid, cv::Size scal
 	int dst_ht = org_ht / shrink;
 	int dst_wd = org_wd / shrink;
 	float* img_smooth  = new float[org_ht*org_wd*3];
+	//printf("%d %d\n", org_ht, org_wd);
 	float* chnsPyramid_temp = new float[dst_ht*dst_wd*nChannels];
 	float* orgPyramid = chnsPyramid_temp;
 	/// xma Channel features
@@ -392,6 +403,7 @@ void acf_detect::GradMag(float* pix_array, float* M, float* O, int ht,int wd, in
 	float* Gx = new float[s];   /// xma x direction gradient
 	float* Gy = new float[s];   /// xma y direction gradient
 	// compute gradient magnitude and orientation for each column
+	//printf("HELLO456================\n");	
 	for(int y = 0; y < ht; ++y )
 	{
 		// compute gradients (Gx, Gy) with maximum squared magnitude (M2)
@@ -402,6 +414,7 @@ void acf_detect::GradMag(float* pix_array, float* M, float* O, int ht,int wd, in
 			/// xma Gx+c*h                    pointer to Gx, current channel
 			/// xma Gy+c*h                    pointer to Gy, current channel
 			float* current_row = pix_array+y*wd + c * wd * ht;
+		//	printf("%d %d HELLLLLL=============\n", c, y);
 			//cout << "Currently at y = " << y << " c = " << c << " current row value is " << *current_row << endl;
 			grad_row( current_row, Gx+c*wd, Gy+c*wd, ht, wd, y, 1);
 			for(int x=0; x < wd; ++x )

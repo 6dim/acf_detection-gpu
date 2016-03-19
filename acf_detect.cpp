@@ -171,9 +171,9 @@ void acf_detect::operator()(cv::Mat& img, vector<bb_xma>& bbs, float *luv_img_gp
 		int s_width  = width / shrink;
 		vector<bb_xma> bbs_sc; /// current scale bounding boxes
 		//printf("%d\n", i);
-		if (i == 0)
-			img_process::imResample_array_int2lin_gpu(luv_img_gpu, pix_ptr, img.channels(),img.rows, img.cols, height, width);
-		else
+		//if (height % 32 == 0 && width % 32 == 0 && img.rows % height != 0)
+		//	img_process::imResample_array_int2lin_gpu(luv_img_gpu, pix_ptr, img.channels(),img.rows, img.cols, height, width);
+		//else
 			img_process::imResample_array_int2lin(img_org, pix_ptr, img.channels(),img.rows, img.cols, height, width);
 		//ofstream file;
 		//file.open("pix_ptr_gpu");

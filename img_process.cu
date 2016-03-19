@@ -1,5 +1,8 @@
 #include "img_process.hpp"
 #include <fstream>
+
+#include <stdio.h>
+#include <opencv2/opencv.hpp>
 //#define __OUTPUT_PIX__
 
 #define BLOCK_SIZE 32
@@ -2034,7 +2037,6 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 }
 
 
-
 /// bilinear interpolation methods to resize image (array version, no SSE)
 /// note that for the input array, the different color channels are separated, linearly sotred in memory,same for the output array
 void img_process::imResample_array_lin2lin(float* in_img, float* out_img, int d, int org_ht, int org_wd, int dst_ht, int dst_wd, float r )
@@ -2296,7 +2298,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	int in_img_size_total = sizeof(float) * org_ht * org_wd * n_channels;
 	int out_img_size_total = sizeof(float) * dst_ht * dst_wd * n_channels;
 
-	cout << "here1\n";
+	//cout << "here1\n";
 
  	cuda_ret = cudaMalloc((void **)&dev_C_temp0, sizeof(float) * (org_wd + 4));
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
@@ -2323,8 +2325,8 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	/* wait all till malloc finishes */
 	cuda_ret = cudaDeviceSynchronize();
 
-	cout << "here2\n";
-	cuda_ret = cudaMemcpy(in_img_temp, in_img, in_img_size_total);
+	//cout << "here2\n";
+	cuda_ret = cudaMemcpy(in_img_temp, in_img, in_img_size_total, cudaMemcpyHostToDevice);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
 
 	cuda_ret = cudaMemcpy(yas_const, yas, sizeof(int) * hn, cudaMemcpyHostToDevice);
@@ -2339,23 +2341,22 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
 	const dim3 dim_grid(ceil(dst_wd / BLOCK_SIZE), ceil(dst_ht / BLOCK_SIZE));
 
-	cout << "here3\n";
+	//cout << "here3\n";
 
 	cudaStream_t stream[n_channels];
 
 	/* Create CUDA streams so that each channel operations can be done simultaneously */
-    for (int iter = 0; iter < n_channels; iter++) {
+    /*for (int iter = 0; iter < n_channels; iter++) {
     	cuda_ret = cudaStreamCreate(&stream[iter]);
     	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
-    }
+    }*/
 
 	cuda_ret = cudaDeviceSynchronize();
-	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 
 	if ((org_ht == dst_ht) || (org_ht == 2 * dst_ht) || (org_ht == 3 * dst_ht) || (org_ht == 4 * dst_ht)) {
 		//for (int n = 0; n < n_channels; n++)
 		{
-			resample_chnl_lin_gpu_kernel3<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img,
+			resample_chnl_lin_gpu_kernel3<<<dim_grid, dim_block>>>(in_img_temp, dev_out_rsmpl_img,
 																   dev_C_temp0, dev_C_temp1, dev_C_temp2,
 																   org_wd, org_ht, dst_wd, dst_ht,
 																   n_channels, r, yas_const, ybs_const);
@@ -2368,13 +2369,13 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 		}
 
-		cout << "here5\n";
+		//cout << "here5\n";
 
 		/* wait for all streams to finish computing */
 		cuda_ret = cudaDeviceSynchronize();
 		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 
-		cout << "here6\n";
+		//cout << "here6\n";
 
 	} else {
 		cuda_ret = cudaMalloc((void **)&xas_const, sizeof(int) * wn);
@@ -2396,11 +2397,11 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 		cuda_ret = cudaDeviceSynchronize();
 
 
-		cout << "here7\n";
+		//cout << "here7\n";
 
 		//for (int n = 0; n < n_channels; n++)
 		{
-			resample_chnl_lin_gpu_kernel4<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img,
+			resample_chnl_lin_gpu_kernel4<<<dim_grid, dim_block>>>(in_img_temp, dev_out_rsmpl_img,
 																   dev_C_temp0, dev_C_temp1, dev_C_temp2,
 																   org_wd, org_ht, dst_wd, dst_ht,
 																   n_channels, r,
@@ -2421,13 +2422,13 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 			//												  				 yas_const, ybs_const, ywts_const);
 
 		}
-		cout << "here8\n";
+		//cout << "here8\n";
 
 		/* wait for all streams to finish computing */
 		cuda_ret = cudaDeviceSynchronize();
 		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 
-		cout << "here9\n";
+		//cout << "here9\n";
 
 		cuda_ret = cudaFree(xas_const);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
@@ -2438,7 +2439,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 	}
 
-	cout << "here10\n";
+	//cout << "here10\n";
 
 	cuda_ret = cudaMemcpy(out_img, dev_out_rsmpl_img, out_img_size_total, cudaMemcpyDeviceToHost);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
@@ -2446,7 +2447,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	cuda_ret = cudaDeviceSynchronize();
 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 
-	cout << "here11\n";
+	//cout << "here11\n";
 
  	cuda_ret = cudaFree(dev_out_rsmpl_img);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
@@ -2469,15 +2470,15 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	cuda_ret = cudaFree(ywts_const);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 
-	for (int i = 0; i < n_channels; i++) {
+	/*for (int i = 0; i < n_channels; i++) {
 		cuda_ret = cudaStreamDestroy(stream[i]);
 		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
-    }
+    }*/
 
 	cuda_ret = cudaDeviceSynchronize();
 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 
-	cout << "here12\n";
+	//cout << "here12\n";
 
 	delete[] xas;
 	delete[] xbs;

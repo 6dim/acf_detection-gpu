@@ -66,9 +66,9 @@ __global__ void convert_to_luv_gpu_kernel(unsigned char *in_img, float *out_img,
 }
 
 
-__global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, float *dev_C_tmp,
+__global__ void resample_chnl_gpu_kernel2(float *dev_in_img, float *dev_out_img, float *dev_C_tmp,
 										 int org_wd, int org_ht, int dst_wd, int dst_ht,
-										 int n_channels, int curr_channel, int r,
+										 int n_channels, int curr_channel, float r,
 										 int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1,
 										 int *xas_const, int *xbs_const, float *xwts_const,
 										 int *yas_const, int *ybs_const, float *ywts_const)
@@ -86,21 +86,9 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 		float *A = dev_in_img + curr_channel;
 		float *B = dev_out_img + (curr_channel * dst_ht * dst_wd);
 
-		if (org_ht == dst_ht && org_wd == dst_wd) {
-			int out_img_idx = y_pos + (dst_wd * x_pos);
-			B[out_img_idx] = A[out_img_idx * n_channels];
-			return;
-		}
-
 		int y1 = 0;
 
-		if (org_ht == 2 * dst_ht) {
-			y1 += 2 * y_pos;
-		} else if (org_ht == 3 * dst_ht) {
-			y1 += 3 * y_pos;
-		} else if (org_ht == 4 * dst_ht) {
-			y1 += 4 * y_pos;
-		} else if (org_ht > dst_ht) {
+		if (org_ht > dst_ht) {
 			int m = 1;
 			for (int iter = 0; iter < y_pos; iter++) {
 				while (y1 + m < hn && yb == ybs_const[y1 + m])
@@ -130,19 +118,7 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 		int x = 0;
 
 		// resample along y direction
-		if (org_ht == 2 * dst_ht) {
-			for (x = 0; x < org_wd; ++x)
-				dev_C_tmp[x] = A0[x * n_channels] + A1[x * n_channels];
-
-	    } else if (org_ht == 3 * dst_ht) {
-			for(x = 0; x < org_wd; ++x)
-				dev_C_tmp[x] = A0[x * n_channels] + A1[x * n_channels] + A2[x * n_channels];
-
-		} else if (org_ht == 4 * dst_ht) {
-			for(x = 0; x < org_wd; ++x)
-				dev_C_tmp[x] = A0[x * n_channels] + A1[x * n_channels] + A2[x * n_channels] + A3[x * n_channels];
-
-		} else if (org_ht > dst_ht) {
+		if (org_ht > dst_ht) {
 			int m = 1;
 			while ((y1 + m < hn) && (yb == ybs_const[y1 + m]))
 				m++;
@@ -193,19 +169,7 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 		__syncthreads();
 
 		// resample along x direction (B -> C)
-		if (org_wd == 2 * dst_wd) {
-			for (x = 0; x < dst_wd; x++)
-				B0[x]= (dev_C_tmp[2 * x] + dev_C_tmp[(2 * x) + 1]) * (r / 2);
-
-		} else if (org_wd == 3 * dst_wd) {
-			for (x = 0; x < dst_wd; x++)
-				B0[x] = (dev_C_tmp[3 * x] + dev_C_tmp[(3 * x) + 1] + dev_C_tmp[(3 * x) + 2]) * (r / 3);
-
-		} else if (org_wd == 4 * dst_wd) {
-			for (x = 0; x < dst_wd; x++)
-				B0[x] = (dev_C_tmp[4 * x] + dev_C_tmp[(4 * x) + 1] + dev_C_tmp[(4 * x) + 2] + dev_C_tmp[(4 * x) + 3]) * (r / 4);
-
-		} else if (org_wd > dst_wd) {
+		if (org_wd > dst_wd) {
 			if (xbd0 == 2) {
 				for(x = 0; x < dst_wd; x++) {
 					xa = xas_const[x * 4];
@@ -239,6 +203,90 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 				B0[x] = dev_C_tmp[xas_const[x]] * xwts_const[x] + dev_C_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
 			for (; x < dst_wd; x++)
 				B0[x] = dev_C_tmp[xas_const[x]] * xwts_const[x];
+		}
+
+		__syncthreads();
+	}
+}
+
+__global__ void resample_chnl_gpu_kernel1(float *dev_in_img, float *dev_out_img, float *dev_C_tmp,
+										 int org_wd, int org_ht, int dst_wd, int dst_ht,
+										 int n_channels, int curr_channel, float r)
+{
+
+	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int y_pos = threadIdx.y + (blockDim.y * blockIdx.y);
+
+	if ((x_pos < dst_wd) && (y_pos < dst_ht)) {
+
+		int xa, ya, yb;
+		float wt, wt1;
+		float *A0, *A1, *A2, *A3, *B0;
+
+		float *A = dev_in_img + curr_channel;
+		float *B = dev_out_img + (curr_channel * dst_ht * dst_wd);
+
+		if (org_ht == dst_ht && org_wd == dst_wd) {
+			int out_img_idx = y_pos + (dst_wd * x_pos);
+			B[out_img_idx] = A[out_img_idx * n_channels];
+			return;
+		}
+
+		int y1 = 0;
+
+		if (org_ht == 2 * dst_ht) {
+			y1 += 2 * y_pos;
+		} else if (org_ht == 3 * dst_ht) {
+			y1 += 3 * y_pos;
+		} else if (org_ht == 4 * dst_ht) {
+			y1 += 4 * y_pos;
+		}
+
+		if (y_pos == 0)
+			y1 = 0;
+
+		ya = yas_const[y1];
+		A0 = A + (ya * org_wd * n_channels);
+		A1 = A0 + (org_wd * n_channels);
+		A2 = A1 + (org_wd * n_channels);
+		A3 = A2 + (org_wd * n_channels);
+
+		yb = ybs_const[y1];
+		B0 = B + (yb * dst_wd);
+
+		int x = 0;
+
+		// resample along y direction
+		if (org_ht == 2 * dst_ht) {
+			for (x = 0; x < org_wd; ++x)
+				dev_C_tmp[x] = A0[x * n_channels] + A1[x * n_channels];
+
+	    } else if (org_ht == 3 * dst_ht) {
+			for(x = 0; x < org_wd; ++x)
+				dev_C_tmp[x] = A0[x * n_channels] + A1[x * n_channels] + A2[x * n_channels];
+
+		} else if (org_ht == 4 * dst_ht) {
+			for(x = 0; x < org_wd; ++x)
+				dev_C_tmp[x] = A0[x * n_channels] + A1[x * n_channels] + A2[x * n_channels] + A3[x * n_channels];
+
+		}
+
+		/* ensure that all threads have calculated the values for C until this point */
+		__syncthreads();
+
+		// resample along x direction (B -> C)
+		if (org_wd == 2 * dst_wd) {
+			for (x = 0; x < dst_wd; x++)
+				B0[x]= (dev_C_tmp[2 * x] + dev_C_tmp[(2 * x) + 1]) * (r / 2);
+
+		} else if (org_wd == 3 * dst_wd) {
+			for (x = 0; x < dst_wd; x++)
+				B0[x] = (dev_C_tmp[3 * x] + dev_C_tmp[(3 * x) + 1] + dev_C_tmp[(3 * x) + 2]) * (r / 3);
+
+		} else if (org_wd == 4 * dst_wd) {
+			for (x = 0; x < dst_wd; x++)
+				B0[x] = (dev_C_tmp[4 * x] + dev_C_tmp[(4 * x) + 1] + dev_C_tmp[(4 * x) + 2] + dev_C_tmp[(4 * x) + 3]) * (r / 4);
+
 		}
 
 		__syncthreads();
@@ -392,10 +440,6 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 	out_img = res_img;
 
 	cudaError_t cuda_ret;
-#if 0
-	unsigned char *dev_input_img; /* input image is of type 8UC3 (8 bit unsigned 3 channel) */
-	float *dev_output_luv_img; /* output image is of type 32FC3 (32 bit float 3 channel) */
-#endif
 
 	unsigned int in_img_size_total = in_img.step * in_img.rows;
 	unsigned int out_img_size_total = res_img.step * res_img.rows;
@@ -429,14 +473,6 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 	/* Copy back data from device memory to OpenCV output image */
 	cuda_ret = cudaMemcpy(res_img.ptr<float>(0), dev_output_luv_img, out_img_size_total, cudaMemcpyDeviceToHost);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to copy from device memory");
-
-#if 0
-	/* Free the device memory */
-	cuda_ret = cudaFree(dev_input_img);
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
-	cuda_ret = cudaFree(dev_output_luv_img);
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
-#endif
 
 	return;
 }
@@ -1086,56 +1122,14 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	for (int x = 0; x < wn; x++)
 		xwts[x] *= r;
 
+	cudaError_t cuda_ret;
 	memset(out_img, 0, sizeof(float) * dst_ht * dst_wd * n_channels);
  	float *dev_out_rsmpl_img, *dev_C_temp;
-
-	cudaError_t cuda_ret;
-
-	int *xas_const, *xbs_const, *yas_const, *ybs_const;
-	float *xwts_const, *ywts_const;
-
-	if ((org_ht != 2 * dst_ht) && (org_ht != 3 * dst_ht) && (org_ht != 4 * dst_ht)) {
-
-		cuda_ret = cudaMalloc((void **)&xas_const, sizeof(int) * wn);
- 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 		cuda_ret = cudaMalloc((void **)&xbs_const, sizeof(int) * wn);
- 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 		cuda_ret = cudaMalloc((void **)&xwts_const, sizeof(int) * wn);
- 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
-
-		cuda_ret = cudaMalloc((void **)&yas_const, sizeof(int) * hn);
- 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 		cuda_ret = cudaMalloc((void **)&ybs_const, sizeof(int) * hn);
- 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
- 		cuda_ret = cudaMalloc((void **)&ywts_const, sizeof(int) * hn);
- 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
-
-
-		cuda_ret = cudaMemcpy(xas_const, xas, sizeof(int) * wn, cudaMemcpyHostToDevice);
-		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpy(xbs_const, xbs, sizeof(int) * wn, cudaMemcpyHostToDevice);
-		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpy(xwts_const, xwts, sizeof(float) * wn, cudaMemcpyHostToDevice);
-		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-
-		cuda_ret = cudaMemcpy(yas_const, yas, sizeof(int) * hn, cudaMemcpyHostToDevice);
-		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpy(ybs_const, ybs, sizeof(int) * hn, cudaMemcpyHostToDevice);
-		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpy(ywts_const, ywts, sizeof(float) * hn, cudaMemcpyHostToDevice);
-		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-	}
-
+	int *xas_const = NULL, *xbs_const = NULL, *yas_const = NULL, *ybs_const = NULL;
+	float *xwts_const = NULL, *ywts_const = NULL;
 
 	//int in_img_size_total = sizeof(float) * org_ht * org_wd * n_channels;
 	int out_img_size_total = sizeof(float) * dst_ht * dst_wd * n_channels;
-	cudaStream_t stream[n_channels];
-
-	/* Create CUDA streams so that each channel operations can be done simultaneously */
-    for (int iter = 0; iter < n_channels; iter++) {
-    	cuda_ret = cudaStreamCreate(&stream[iter]);
-    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
-    }
 
  	cuda_ret = cudaMalloc((void **)&dev_C_temp, sizeof(float) * (org_wd + 4));
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
@@ -1144,24 +1138,55 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	cuda_ret = cudaMalloc((void **)&dev_out_rsmpl_img, out_img_size_total);
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
 
- 	/* set C array to 0 */
- 	//cuda_ret = cudaMemset((void **)&dev_C_temp, 0, sizeof(float) * (org_wd + 4));
- 	//if (cuda_ret != cudaSuccess) FATAL("Unable to set memory");
-
- 	/* wait until copying and initializing is done */
- 	cudaDeviceSynchronize();
-
  	/* choose grid to cover entire output image */
 	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
 	const dim3 dim_grid(ceil(dst_wd / BLOCK_SIZE), ceil(dst_ht / BLOCK_SIZE));
 
-	/* Launching 3 kernels asynchronously, to work separately on 3 different channels simultaneously */
-	for (int n = 0; n < n_channels; n++) {
-		resample_chnl_gpu_kernel<<<dim_grid, dim_block, 0, stream[n]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
-																		org_wd, org_ht, dst_wd, dst_ht,
-																		n_channels, n, r,
-																		hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-																		xas, xbs, xwts, yas, ybs, ywts);
+
+	if ((org_ht == 2 * dst_ht) || (org_ht == 3 * dst_ht) || (org_ht != 4 * dst_ht)) {
+		for (int n = 0; n < n_channels; n++) {
+			resample_chnl_gpu_kernel1<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
+															  org_wd, org_ht, dst_wd, dst_ht,
+															  n_channels, n, r);
+		}
+	} else {
+		cuda_ret = cudaMalloc((void **)&xas_const, sizeof(int) * wn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&xbs_const, sizeof(int) * wn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&xwts_const, sizeof(float) * wn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+
+		cuda_ret = cudaMalloc((void **)&yas_const, sizeof(int) * hn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&ybs_const, sizeof(int) * hn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&ywts_const, sizeof(float) * hn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+
+
+		cuda_ret = cudaMemcpy(xas_const, xas, sizeof(int) * wn, cudaMemcpyHostToDevice);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+		cuda_ret = cudaMemcpy(xbs_const, xbs, sizeof(int) * wn, cudaMemcpyHostToDevice);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+		cuda_ret = cudaMemcpy(xwts_const, xwts, sizeof(float) * wn, cudaMemcpyHostToDevice);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+
+		cuda_ret = cudaMemcpy(yas_const, yas, sizeof(int) * hn, cudaMemcpyHostToDevice);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+		cuda_ret = cudaMemcpy(ybs_const, ybs, sizeof(int) * hn, cudaMemcpyHostToDevice);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+		cuda_ret = cudaMemcpy(ywts_const, ywts, sizeof(float) * hn, cudaMemcpyHostToDevice);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+
+
+		for (int n = 0; n < n_channels; n++) {
+			resample_chnl_gpu_kernel<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
+															  org_wd, org_ht, dst_wd, dst_ht,
+															  n_channels, n, r,
+															  hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+															  xas, xbs, xwts, yas, ybs, ywts);
+		}
 	}
 
 	/* wait for all streams to finish computing */
@@ -1188,11 +1213,6 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		cuda_ret = cudaFree(ywts_const);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 	}
-
-	for (int i = 0; i < n_channels; i++) {
-		cuda_ret = cudaStreamDestroy(stream[i]);
-		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
-    }
 
 	delete[] xas;
 	delete[] xbs;

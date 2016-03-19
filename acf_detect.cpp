@@ -302,7 +302,8 @@ void acf_detect::chnsCompute(float* pix_array, float* chnsPyramid, cv::Size scal
 	float* orgPyramid = chnsPyramid_temp;
 	/// xma Channel features
 	/// 1. clolor channel, simply resample the image specified by shrink;
-	img_process::ConvTri1(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
+	//img_process::ConvTri1(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
+	img_process::ConvTri1_gpu(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
 	img_process::imResample_array_lin2lin(img_smooth, chnsPyramid_temp, 3, org_ht, org_wd, dst_ht, dst_wd, 1.0f);
 	chnsPyramid_temp += dst_ht*dst_wd*3;
 	float* Mag  = new float[org_ht*org_wd];

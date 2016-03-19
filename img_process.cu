@@ -2343,7 +2343,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 	//cout << "here3\n";
 
-	cudaStream_t stream[n_channels];
+	/*cudaStream_t stream[n_channels];
 
 	/* Create CUDA streams so that each channel operations can be done simultaneously */
     /*for (int iter = 0; iter < n_channels; iter++) {
@@ -2373,7 +2373,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 		/* wait for all streams to finish computing */
 		cuda_ret = cudaDeviceSynchronize();
-		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel3");
 
 		//cout << "here6\n";
 
@@ -2426,7 +2426,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 		/* wait for all streams to finish computing */
 		cuda_ret = cudaDeviceSynchronize();
-		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel4");
 
 		//cout << "here9\n";
 
@@ -2490,6 +2490,109 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 }
 
 
+
+__global__ void conv_tri_kernel(float *dev_I, float *dev_O, int wd, int ht, float nrm, float p)
+{
+	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int y_pos = threadIdx.y + (blockDim.y * blockIdx.y);
+
+	if ((x_pos < dst_wd) && (y_pos < dst_ht)) {
+
+		It0 = Im0 = Ib0 = dev_I + (y_pos * wd) + (0 * ht * wd);
+		It1 = Im1 = Ib1 = dev_I + (y_pos * wd) + (1 * ht * wd);
+		It2 = Im2 = Ib2 = dev_I + (y_pos * wd) + (2 * ht * wd);
+
+		Ot0 = dev_O + (y_pos * wd) + (0 * ht * wd);
+		Ot1 = dev_O + (y_pos * wd) + (1 * ht * wd);
+		Ot2 = dev_O + (y_pos * wd) + (2 * ht * wd);
+
+		if(y_pos > 0) { /// not the first row, let It point to previous row
+			It0 -= wd;
+			It1 -= wd;
+			It2 -= wd;
+		}
+		if(y_pos < ht - 1) { /// not the last row, let Ib point to next row
+			Ib0 += wd;
+			Ib1 += wd;
+			Ib2 += wd;
+		}
+
+		T0[x_pos] = nrm * (It0[x_pos] + (p * Im0[x_pos]) + Ib0[x_pos]);
+		T1[x_pos] = nrm * (It1[x_pos] + (p * Im1[x_pos]) + Ib1[x_pos]);
+		T2[x_pos] = nrm * (It2[x_pos] + (p * Im2[x_pos]) + Ib2[x_pos]);
+
+		__syncthreads();
+
+		int j = 0;
+
+		Ot0[j] = ((1 + p) * T0[j]) + T0[j+1];
+		Ot1[j] = ((1 + p) * T1[j]) + T1[j+1];
+		Ot2[j] = ((1 + p) * T2[j]) + T2[j+1];
+		++j;
+
+		for(; j < wd - 1; ++j) {
+			Ot0[j] = T0[j - 1] + (p * T0[j]) + T0[j + 1];
+			Ot1[j] = T1[j - 1] + (p * T1[j]) + T1[j + 1];
+			Ot2[j] = T2[j - 1] + (p * T2[j]) + T2[j + 1];
+		}
+
+		Ot0[j] = T0[j - 1] + ((1 + p) * T0[j]);
+		Ot1[j] = T1[j - 1] + ((1 + p) * T1[j]);
+		Ot2[j] = T2[j - 1] + ((1 + p) * T2[j]);
+
+		__syncthreads();
+	}
+
+}
+
+
+void img_process::ConvTri1_gpu(float* I, float* O, int ht, int wd, int dim, float p, int s)
+{
+    const float nrm = 1.0f / ((p + 2) * (p + 2));
+    cudaError_t cuda_ret;
+
+ 	cuda_ret = cudaMalloc((void **)&dev_I, sizeof(float) * (ht * wd * dim));
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cuda_ret = cudaMalloc((void **)&dev_O, sizeof(float) * (ht * wd * dim));
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cuda_ret = cudaMalloc((void **)&dev_T0, sizeof(float) * wd);
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cuda_ret = cudaMalloc((void **)&dev_T1, sizeof(float) * wd);
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cuda_ret = cudaMalloc((void **)&dev_T2, sizeof(float) * wd);
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cudaDeviceSynchronize();
+
+ 	cuda_ret = cudaMemcpy(dev_I, I, sizeof(float) * (ht * wd * dim), cudaMemcpyHostToDevice);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+	cudaDeviceSynchronize();
+
+	/* choose grid to cover entire output image */
+	const dim3 dim_block(BLOCK_SIZE, BLOCK_SIZE);
+	const dim3 dim_grid(ceil(wd / BLOCK_SIZE), ceil(ht / BLOCK_SIZE));
+
+	conv_tri_kernel<<<dim_grid, dim_block>>>(dev_I, dev_O, wd, ht, nrm, p);
+
+	cuda_ret = cudaDeviceSynchronize();
+	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel");
+
+	cuda_ret = cudaMemcpy(O, dev_O, sizeof(float) * (ht * wd * dim), cudaMemcpyDeviceToHost);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
+	cudaDeviceSynchronize();
+
+	cuda_ret = cudaFree(dev_I);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cuda_ret = cudaFree(dev_O);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cuda_ret = cudaFree(dev_T0);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cuda_ret = cudaFree(dev_T1);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cuda_ret = cudaFree(dev_T2);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cudaDeviceSynchronize();
+
+}
 
 
 

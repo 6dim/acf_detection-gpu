@@ -8,12 +8,6 @@ __constant__ __device__ float mr_const[3];
 __constant__ __device__ float mg_const[3];
 __constant__ __device__ float mb_const[3];
 
-__constant__ __device__ int xas_const[1000];
-__constant__ __device__ int xbs_const[1000];
-__constant__ __device__ float xwts_const[1000];
-__constant__ __device__ int yas_const[1000];
-__constant__ __device__ int ybs_const[1000];
-__constant__ __device__ float ywts_const[1000];
 
 #define FATAL(msg, ...) \
     do {\
@@ -75,7 +69,9 @@ __global__ void convert_to_luv_gpu_kernel(unsigned char *in_img, float *out_img,
 __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, float *dev_C_tmp,
 										 int org_wd, int org_ht, int dst_wd, int dst_ht,
 										 int n_channels, int curr_channel, int r,
-										 int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1)
+										 int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1,
+										 int *xas_const, int *xbs_const, float *xwts_const,
+										 int *yas_const, int *ybs_const, float *ywts_const)
 {
 
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -460,12 +456,6 @@ void img_process::free_gpu(void)
 		cuda_ret = cudaFree(dev_output_luv_img);
 	 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 	 	dev_output_luv_img = NULL;
-	}
-
-	if (dev_C_temp) {
-		cuda_ret = cudaFree(dev_C_temp);
-	 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
-	 	dev_C_temp = NULL;
 	}
 
 }
@@ -1101,20 +1091,38 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 
 	cudaError_t cuda_ret;
 
+	int *xas_const, *xbs_const, *yas_const, *ybs_const;
+	float *xwts_const, *ywts_const;
+
 	if ((org_ht != 2 * dst_ht) && (org_ht != 3 * dst_ht) && (org_ht != 4 * dst_ht)) {
 
-		cuda_ret = cudaMemcpyToSymbol(xas_const, xas, sizeof(int) * wn, 0);
+		cuda_ret = cudaMalloc((void **)&xas_const, sizeof(int) * wn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&xbs_const, sizeof(int) * wn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&xwts_const, sizeof(int) * wn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+
+		cuda_ret = cudaMalloc((void **)&yas_const, sizeof(int) * hn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&ybs_const, sizeof(int) * hn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 		cuda_ret = cudaMalloc((void **)&ywts_const, sizeof(int) * hn);
+ 		if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+
+
+		cuda_ret = cudaMemcpy(xas_const, xas, sizeof(int) * wn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpyToSymbol(xbs_const, xbs, sizeof(int) * wn, 0);
+		cuda_ret = cudaMemcpy(xbs_const, xbs, sizeof(int) * wn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpyToSymbol(xwts_const, xwts, sizeof(float) * wn, 0);
+		cuda_ret = cudaMemcpy(xwts_const, xwts, sizeof(float) * wn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
 
-		cuda_ret = cudaMemcpyToSymbol(yas_const, yas, sizeof(int) * hn, 0);
+		cuda_ret = cudaMemcpy(yas_const, yas, sizeof(int) * hn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpyToSymbol(ybs_const, ybs, sizeof(int) * hn, 0);
+		cuda_ret = cudaMemcpy(ybs_const, ybs, sizeof(int) * hn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
-		cuda_ret = cudaMemcpyToSymbol(ywts_const, ywts, sizeof(float) * hn, 0);
+		cuda_ret = cudaMemcpy(ywts_const, ywts, sizeof(float) * hn, cudaMemcpyHostToDevice);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to copy to constant memory");
 	}
 
@@ -1137,8 +1145,8 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
 
  	/* set C array to 0 */
- 	cuda_ret = cudaMemset((void **)&dev_C_temp, 0, sizeof(float) * (org_wd + 4));
- 	if (cuda_ret != cudaSuccess) FATAL("Unable to set memory");
+ 	//cuda_ret = cudaMemset((void **)&dev_C_temp, 0, sizeof(float) * (org_wd + 4));
+ 	//if (cuda_ret != cudaSuccess) FATAL("Unable to set memory");
 
  	/* wait until copying and initializing is done */
  	cudaDeviceSynchronize();
@@ -1152,7 +1160,8 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		resample_chnl_gpu_kernel<<<dim_grid, dim_block, 0, stream[n]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
 																		org_wd, org_ht, dst_wd, dst_ht,
 																		n_channels, n, r,
-																		hn, wn, xbd[0], xbd[1], ybd[0], ybd[1]);
+																		hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+																		xas, xbs, xwts, yas, ybs, ywts);
 	}
 
 	/* wait for all streams to finish computing */
@@ -1165,7 +1174,22 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
  	cuda_ret = cudaFree(dev_out_rsmpl_img);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 
-	for (i = 0; i < n_channels; i++) {
+	if ((org_ht != 2 * dst_ht) && (org_ht != 3 * dst_ht) && (org_ht != 4 * dst_ht)) {
+		cuda_ret = cudaFree(xas_const);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+		cuda_ret = cudaFree(xbs_const);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+		cuda_ret = cudaFree(xwts_const);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+		cuda_ret = cudaFree(yas_const);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+		cuda_ret = cudaFree(ybs_const);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+		cuda_ret = cudaFree(ywts_const);
+		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	}
+
+	for (int i = 0; i < n_channels; i++) {
 		cuda_ret = cudaStreamDestroy(stream[i]);
 		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
     }

@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
 			cout << "Image  is not loaded properly" << endl;  //handle failing images
 			continue;
 		}
-		im_proc.rgb2luv(img, img_luv);
+		im_proc.rgb2luv_gpu(img, img_luv);
 		acf(img_luv, bbs, im_proc.dev_output_luv_img);
 
 		///////////////////////////////////////////////////////////////////////////////////////

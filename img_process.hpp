@@ -51,6 +51,7 @@ public:
 	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img);
 	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB = false);
 	static void imResample_array_int2lin_gpu(float* in_img, float* out_img, int n_channels, int org_ht, int org_wd, int dst_ht, int dst_wd, float r=1.0f);
+	static void imResample_array_lin2lin_gpu(float* in_img, float* out_img, int n_channels, int org_ht, int org_wd, int dst_ht, int dst_wd, float r=1.0f)
 	void free_gpu(void);
 
 	static void imResample(cv::Mat& in_img, cv::Mat& out_img, int dheight, int dwidth, float r = 1.0f ); /// bilinear interpolation methods to resize image

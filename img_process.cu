@@ -8,11 +8,11 @@ __constant__ __device__ float mr_const[3];
 __constant__ __device__ float mg_const[3];
 __constant__ __device__ float mb_const[3];
 
-__constant__ __device__ float xas_const[1000];
-__constant__ __device__ float xbs_const[1000];
+__constant__ __device__ int xas_const[1000];
+__constant__ __device__ int xbs_const[1000];
 __constant__ __device__ float xwts_const[1000];
-__constant__ __device__ float yas_const[1000];
-__constant__ __device__ float ybs_const[1000];
+__constant__ __device__ int yas_const[1000];
+__constant__ __device__ int ybs_const[1000];
 __constant__ __device__ float ywts_const[1000];
 
 #define FATAL(msg, ...) \
@@ -73,7 +73,7 @@ __global__ void convert_to_luv_gpu_kernel(unsigned char *in_img, float *out_img,
 
 
 __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, float *dev_C_tmp,
-										 int org_wd, int org_ht, int dst_wd, int dst_ht
+										 int org_wd, int org_ht, int dst_wd, int dst_ht,
 										 int n_channels, int curr_channel, int r,
 										 int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1)
 {
@@ -83,12 +83,16 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 
 	if ((x_pos < dst_wd) && (y_pos < dst_ht)) {
 
+		int xa, ya, yb;
+		float wt, wt1;
+		float *A0, *A1, *A2, *A3, *B0;
+		
 		float *A = dev_in_img + curr_channel;
 		float *B = dev_out_img + (curr_channel * dst_ht * dst_wd);
 
 		if (org_ht == dst_ht && org_wd == dst_wd) {
 			int out_img_idx = y_pos + (dst_wd * x_pos);
-			B[out_img_idx] = A[out_img_idx * n_channels]
+			B[out_img_idx] = A[out_img_idx * n_channels];
 			return;
 		}
 
@@ -110,7 +114,7 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 			wt = ywts_const[y1];
 			wt1 = 1 - wt;
 		} else {
-			y1 = y_pos
+			y1 = y_pos;
 			wt = ywts_const[y1];
 			wt1 = 1 - wt;
 		}
@@ -182,7 +186,7 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 
 			if (yBd) {
 				for(int tempx = 0; tempx < org_wd; ++tempx)
-					dev_C_tmp[tempx] = A0[tempx * d];
+					dev_C_tmp[tempx] = A0[tempx * n_channels];
 			} else {
 				for(int tempx = 0; tempx < org_wd; ++tempx)
 					dev_C_tmp[tempx] = (A0[tempx * n_channels] * wt) + (A1[tempx * n_channels] * wt1);
@@ -217,7 +221,7 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 					xa = xas_const[x * 4];
 					B0[x] = (dev_C_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
 							(dev_C_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							(dev_C_tmp[xa + 2] * xwts_const[(4 * x) + 2];
+							(dev_C_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 				}
 			} else if (xbd0 == 4) {
 				for(x = 0; x < dst_wd; x++) {
@@ -443,6 +447,8 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 
 void img_process::free_gpu(void)
 {
+	cudaError_t cuda_ret;
+	
 	/* Free the device memory */
 	if (dev_input_img) {
 		cuda_ret = cudaFree(dev_input_img);
@@ -708,7 +714,7 @@ void img_process::imResample(cv::Mat& in_img, cv::Mat& out_img, int dheight, int
 				//cout << "hn = " << hn << " y1 = " << y1 << " m = " << m << endl;
 				if(m==1)
 				{
-					for(;x < orgdst_ht_wd; ++x)
+					for(;x < org_wd; ++x)
 					{
 						C[x] = A0[x*d] * ywts[y1];
 					}
@@ -1113,14 +1119,15 @@ void img_process::imResample_array_int2lin_gpu(float* in_img, float* out_img, in
 	}
 
 
-	int in_img_size_total = sizeof(float) * org_ht * org_wd * n_channels;
+	//int in_img_size_total = sizeof(float) * org_ht * org_wd * n_channels;
 	int out_img_size_total = sizeof(float) * dst_ht * dst_wd * n_channels;
-
+	cudaStream_t stream[n_channels];
+	
 	static int cnt;
 	if (cnt == 0) {
 
 		/* Create CUDA streams so that each channel operations can be done simultaneously */
-		cudaStream_t stream[n_channels];
+		
 	    for (int iter = 0; iter < n_channels; iter++) {
 	    	cuda_ret = cudaStreamCreate(&stream[iter]);
 	    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");

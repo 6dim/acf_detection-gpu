@@ -68,7 +68,8 @@ private:
 	float lTable[1064];
 
 	unsigned char *dev_input_img; /* pointer to input image on gpu */
-	float *dev_output_img; /* pointer to output image on gpu */
+	float *dev_output_luv_img; /* pointer to output image on gpu */
+	float *dev_C_temp;
 
 	static void resampleCoef(int ha, int hb, int &n, int *&yas, int *&ybs, float *&wts, int bd[2], int pad=0);
 	static void ConvTri1X(float* I, float* O, int wd, float p = 7.6f, int s = 1);

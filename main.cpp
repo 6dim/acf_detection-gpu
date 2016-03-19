@@ -76,18 +76,10 @@ int main(int argc, char* argv[])
 	namedWindow("pedestrian detector", 1);
 
 
-
-
-
-
-
 	unsigned img_height = 480;
 	unsigned img_width  = 640;
 	acf_detect acf(Size(img_width, img_height));
 	img_process im_proc;
-
-
-
 	Mat frame;
 
 	while (!stop)
@@ -103,40 +95,38 @@ int main(int argc, char* argv[])
 		cout << endl << "Now detect frame " << currentFrame << endl;
 
 		double t = (double)getTickCount();
+
 		/////////////////////////////////////////////////////////////////////////////////////
+
 		img = frame;
 		if (!img.data)
-		  {
-			  cout << "Image  is not loaded properly" << endl;  //handle failing images
-			  continue;
-		  }
-		  im_proc.rgb2luv(img, img_luv);
-		  acf(img_luv, bbs);
-
-
-
+		{
+			cout << "Image  is not loaded properly" << endl;  //handle failing images
+			continue;
+		}
+		im_proc.rgb2luv(img, img_luv);
+		acf(img_luv, bbs);
 
 		///////////////////////////////////////////////////////////////////////////////////////
+
 		t = (double)getTickCount() - t;
 		printf("detection time = %gms\n", t*1000. / cv::getTickFrequency());
 		size_t i, j;
 		for(unsigned int j = 0; j < bbs.size(); ++j )
-			  {
-				  ///@xma updated to include detection score (which will be used to sort the detection result)
+		{
+			///@xma updated to include detection score (which will be used to sort the detection result)
 
-				// cout < "boundingboxes ," << bbs[j].x << "," << bbs[j].y << "," <<  bbs[j].wd << "," << bbs[j].ht << "," << bbs[j].wt << endl;
-				  Rect r(bbs[j].x,bbs[j].y, bbs[j].wd ,bbs[j].ht);
-				  cout << "rectangle topleft " << r.tl() << " bottom right " << r.br() << endl;
-					rectangle(img,r.tl() , r.br(),  cv::Scalar(0, 255, 0), 1);
+			// cout < "boundingboxes ," << bbs[j].x << "," << bbs[j].y << "," <<  bbs[j].wd << "," << bbs[j].ht << "," << bbs[j].wt << endl;
+			Rect r(bbs[j].x,bbs[j].y, bbs[j].wd ,bbs[j].ht);
+			cout << "rectangle topleft " << r.tl() << " bottom right " << r.br() << endl;
+			rectangle(img,r.tl() , r.br(),  cv::Scalar(0, 255, 0), 1);
 
 			//rectangle(Mat& img, Rect rec, const Scalar& color, int thickness=1, int lineType=8, int shift=0 )
-			}
+		}
 		imshow("pedestrian detector", frame);
 
 		//waitKey(int delay=0)
-
 		int c = waitKey(delay);
-
 
 		if ((char)c == 27 || currentFrame > frameToStop)
 		{

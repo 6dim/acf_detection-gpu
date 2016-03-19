@@ -2491,14 +2491,14 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 
 
-__global__ void conv_tri_kernel(float *dev_I, float *dev_O
+__global__ void conv_tri_kernel(float *dev_I, float *dev_O,
 								float *T0, float *T1, float *T2,
 								int wd, int ht, float nrm, float p)
 {
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
 	unsigned int y_pos = threadIdx.y + (blockDim.y * blockIdx.y);
 
-	if ((x_pos < dst_wd) && (y_pos < dst_ht)) {
+	if ((x_pos < wd) && (y_pos < ht)) {
 
 		float *It0, *It1, *It2, *Im0, *Im1, *Im2, *Ib0, *Ib1, *Ib2, *Ot0, *Ot1, *Ot2;
 
@@ -2527,22 +2527,20 @@ __global__ void conv_tri_kernel(float *dev_I, float *dev_O
 
 		__syncthreads();
 
-		int j = 0;
-
-		Ot0[j] = ((1 + p) * T0[j]) + T0[j+1];
-		Ot1[j] = ((1 + p) * T1[j]) + T1[j+1];
-		Ot2[j] = ((1 + p) * T2[j]) + T2[j+1];
-		++j;
-
-		for(; j < wd - 1; ++j) {
-			Ot0[j] = T0[j - 1] + (p * T0[j]) + T0[j + 1];
-			Ot1[j] = T1[j - 1] + (p * T1[j]) + T1[j + 1];
-			Ot2[j] = T2[j - 1] + (p * T2[j]) + T2[j + 1];
+		if (x_pos == 0) {
+			Ot0[x_pos] = ((1 + p) * T0[x_pos]) + T0[x_pos + 1];
+			Ot1[x_pos] = ((1 + p) * T1[x_pos]) + T1[x_pos + 1];
+			Ot2[x_pos] = ((1 + p) * T2[x_pos]) + T2[x_pos + 1];
+		} else if (xpos = wd - 1) {
+			Ot0[x_pos] = T0[x_pos - 1] + ((1 + p) * T0[x_pos]);
+			Ot1[x_pos] = T1[x_pos - 1] + ((1 + p) * T1[x_pos]);
+			Ot2[x_pos] = T2[x_pos - 1] + ((1 + p) * T2[x_pos]);
+		} else {
+			Ot0[x_pos] = T0[x_pos - 1] + (p * T0[x_pos]) + T0[x_pos + 1];
+			Ot1[x_pos] = T1[x_pos - 1] + (p * T1[x_pos]) + T1[x_pos + 1];
+			Ot2[x_pos] = T2[x_pos - 1] + (p * T2[x_pos]) + T2[x_pos + 1];
 		}
 
-		Ot0[j] = T0[j - 1] + ((1 + p) * T0[j]);
-		Ot1[j] = T1[j - 1] + ((1 + p) * T1[j]);
-		Ot2[j] = T2[j - 1] + ((1 + p) * T2[j]);
 
 		__syncthreads();
 	}

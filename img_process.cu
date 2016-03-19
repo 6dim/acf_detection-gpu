@@ -86,7 +86,7 @@ __global__ void resample_chnl_gpu_kernel(float *dev_in_img, float *dev_out_img, 
 		int xa, ya, yb;
 		float wt, wt1;
 		float *A0, *A1, *A2, *A3, *B0;
-		
+
 		float *A = dev_in_img + curr_channel;
 		float *B = dev_out_img + (curr_channel * dst_ht * dst_wd);
 
@@ -448,7 +448,7 @@ void img_process::rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img)
 void img_process::free_gpu(void)
 {
 	cudaError_t cuda_ret;
-	
+
 	/* Free the device memory */
 	if (dev_input_img) {
 		cuda_ret = cudaFree(dev_input_img);
@@ -1069,7 +1069,7 @@ void img_process::imResample_array_int2lin(float* in_img, float* out_img, int d,
 
 
 
-void img_process::imResample_array_int2lin_gpu(float* in_img, float* out_img, int n_channels,
+void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img, int n_channels,
 											   int org_ht, int org_wd, int dst_ht, int dst_wd, float r)
 {
 	int hn, wn;
@@ -1097,7 +1097,7 @@ void img_process::imResample_array_int2lin_gpu(float* in_img, float* out_img, in
 		xwts[x] *= r;
 
 	memset(out_img, 0, sizeof(float) * dst_ht * dst_wd * n_channels);
-
+ 	float *dev_out_rsmpl_img;
 
 	cudaError_t cuda_ret;
 
@@ -1122,24 +1122,15 @@ void img_process::imResample_array_int2lin_gpu(float* in_img, float* out_img, in
 	//int in_img_size_total = sizeof(float) * org_ht * org_wd * n_channels;
 	int out_img_size_total = sizeof(float) * dst_ht * dst_wd * n_channels;
 	cudaStream_t stream[n_channels];
-	
-	static int cnt;
-	if (cnt == 0) {
 
-		/* Create CUDA streams so that each channel operations can be done simultaneously */
-		
-	    for (int iter = 0; iter < n_channels; iter++) {
-	    	cuda_ret = cudaStreamCreate(&stream[iter]);
-	    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
-	    }
+	/* Create CUDA streams so that each channel operations can be done simultaneously */
+    for (int iter = 0; iter < n_channels; iter++) {
+    	cuda_ret = cudaStreamCreate(&stream[iter]);
+    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
+    }
 
-	 	cuda_ret = cudaMalloc((void **)&dev_C_temp, sizeof(float) * (org_wd + 4));
-	 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
-
-	 	cnt++;
- 	}
-
- 	float *dev_out_rsmpl_img;
+ 	cuda_ret = cudaMalloc((void **)&dev_C_temp, sizeof(float) * (org_wd + 4));
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
 
  	/* output image size changes frequently */
 	cuda_ret = cudaMalloc((void **)&dev_out_rsmpl_img, out_img_size_total);
@@ -1158,7 +1149,7 @@ void img_process::imResample_array_int2lin_gpu(float* in_img, float* out_img, in
 
 	/* Launching 3 kernels asynchronously, to work separately on 3 different channels simultaneously */
 	for (int n = 0; n < n_channels; n++) {
-		resample_chnl_gpu_kernel<<<dim_grid, dim_block, 0, stream[n]>>>(dev_output_luv_img, dev_out_rsmpl_img, dev_C_temp,
+		resample_chnl_gpu_kernel<<<dim_grid, dim_block, 0, stream[n]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
 																		org_wd, org_ht, dst_wd, dst_ht,
 																		n_channels, n, r,
 																		hn, wn, xbd[0], xbd[1], ybd[0], ybd[1]);
@@ -1174,6 +1165,10 @@ void img_process::imResample_array_int2lin_gpu(float* in_img, float* out_img, in
  	cuda_ret = cudaFree(dev_out_rsmpl_img);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 
+	for (i = 0; i < n_channels; i++) {
+		cuda_ret = cudaStreamDestroy(stream[i]);
+		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
+    }
 
 	delete[] xas;
 	delete[] xbs;

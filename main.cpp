@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
 			continue;
 		}
 		im_proc.rgb2luv(img, img_luv);
-		acf(img_luv, bbs);
+		acf(img_luv, bbs, im_proc.dev_output_luv_img);
 
 		///////////////////////////////////////////////////////////////////////////////////////
 

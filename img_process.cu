@@ -1145,14 +1145,18 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 
 	cudaError_t cuda_ret;
 	memset(out_img, 0, sizeof(float) * dst_ht * dst_wd * n_channels);
- 	float *dev_out_rsmpl_img, *dev_C_temp;
+ 	float *dev_out_rsmpl_img, *dev_C_temp0, *dev_C_temp1, *dev_C_temp2;
 	int *xas_const = NULL, *xbs_const = NULL, *yas_const = NULL, *ybs_const = NULL;
 	float *xwts_const = NULL, *ywts_const = NULL;
 
 	//int in_img_size_total = sizeof(float) * org_ht * org_wd * n_channels;
 	int out_img_size_total = sizeof(float) * dst_ht * dst_wd * n_channels;
 
- 	cuda_ret = cudaMalloc((void **)&dev_C_temp, sizeof(float) * (org_wd + 4));
+ 	cuda_ret = cudaMalloc((void **)&dev_C_temp0, sizeof(float) * (org_wd + 4));
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cuda_ret = cudaMalloc((void **)&dev_C_temp1, sizeof(float) * (org_wd + 4));
+ 	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
+ 	cuda_ret = cudaMalloc((void **)&dev_C_temp2, sizeof(float) * (org_wd + 4));
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");
 
  	/* output image size changes frequently */
@@ -1176,9 +1180,6 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	cuda_ret = cudaMemcpy(ywts_const, ywts, sizeof(float) * hn, cudaMemcpyHostToDevice);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to copy memory to device");
 
-	cuda_ret = cudaDeviceSynchronize();
-	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
-	
 	cout << "here2\n";
 
  	/* choose grid to cover entire output image */
@@ -1187,12 +1188,30 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 
 	cout << "here3\n";
 	
+	cudaStream_t stream[n_channels];
 
+	/* Create CUDA streams so that each channel operations can be done simultaneously */
+    for (int iter = 0; iter < n_channels; iter++) {
+    	cuda_ret = cudaStreamCreate(&stream[iter]);
+    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
+    }
+
+	cuda_ret = cudaDeviceSynchronize();
+	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
+	
 	if ((org_ht == dst_ht) || (org_ht == 2 * dst_ht) || (org_ht == 3 * dst_ht) || (org_ht == 4 * dst_ht)) {
-		for (int n = 0; n < n_channels; n++) {
-			resample_chnl_gpu_kernel1<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
+		//for (int n = 0; n < n_channels; n++)
+		{
+			resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[0]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp0,
 															   org_wd, org_ht, dst_wd, dst_ht,
-															   n_channels, n, r, yas_const, ybs_const);
+															   n_channels, 0, r, yas_const, ybs_const);
+			resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[1]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp1,
+															   org_wd, org_ht, dst_wd, dst_ht,
+															   n_channels, 1, r, yas_const, ybs_const);
+			resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[2]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp2,
+															   org_wd, org_ht, dst_wd, dst_ht,
+															   n_channels, 2, r, yas_const, ybs_const);
+															   
 		}
 		
 		cout << "here5\n";
@@ -1227,10 +1246,23 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 
 		cout << "here7\n";
 	
-		for (int n = 0; n < n_channels; n++) {
-			resample_chnl_gpu_kernel2<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp,
+		//for (int n = 0; n < n_channels; n++)
+		{
+			resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[0]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp0,
 															  org_wd, org_ht, dst_wd, dst_ht,
-															  n_channels, n, r,
+															  n_channels, 0, r,
+															  hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+															  xas_const, xbs_const, xwts_const,
+															  yas_const, ybs_const, ywts_const);
+			resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[1]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp1,
+															  org_wd, org_ht, dst_wd, dst_ht,
+															  n_channels, 1, r,
+															  hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+															  xas_const, xbs_const, xwts_const,
+															  yas_const, ybs_const, ywts_const);
+			resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[2]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp2,
+															  org_wd, org_ht, dst_wd, dst_ht,
+															  n_channels, 2, r,
 															  hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
 															  xas_const, xbs_const, xwts_const,
 															  yas_const, ybs_const, ywts_const);
@@ -1253,9 +1285,6 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		cuda_ret = cudaFree(xwts_const);
 		if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 
-		cuda_ret = cudaDeviceSynchronize();
-		if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
-
 
 	}
 
@@ -1272,6 +1301,13 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
  	cuda_ret = cudaFree(dev_out_rsmpl_img);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 
+	cuda_ret = cudaFree(dev_C_temp2);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cuda_ret = cudaFree(dev_C_temp1);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	cuda_ret = cudaFree(dev_C_temp0);
+	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
+	
 
 	cuda_ret = cudaFree(yas_const);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
@@ -1279,7 +1315,12 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
 	cuda_ret = cudaFree(ywts_const);
 	if (cuda_ret != cudaSuccess) FATAL("Unable to free device memory");
-
+	
+	for (int i = 0; i < n_channels; i++) {
+		cuda_ret = cudaStreamDestroy(stream[i]);
+		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
+    }
+    
 	cuda_ret = cudaDeviceSynchronize();
 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
 

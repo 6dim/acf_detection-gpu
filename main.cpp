@@ -47,12 +47,12 @@ int main(int argc, char* argv[])
 	cout << "Total Frame Number:" << totalFrameNumber << endl;
 
 
-	long frameToStart = 3 * totalFrameNumber / 4.0;
+	long frameToStart = 4 * totalFrameNumber / 5.0;
 	capture.set(CV_CAP_PROP_POS_FRAMES, frameToStart);
 	cout << "Start with frame" << frameToStart << endl;
 
 
-	long frameToStop = totalFrameNumber;
+	long frameToStop = totalFrameNumber - 1;
 
 	if (frameToStop < frameToStart)
 	{
@@ -76,8 +76,8 @@ int main(int argc, char* argv[])
 	namedWindow("pedestrian detector", 1);
 
 
-	unsigned img_height = 480;
-	unsigned img_width  = 640;
+	unsigned img_height = frame_height;
+	unsigned img_width  = frame_width;
 	acf_detect acf(Size(img_width, img_height));
 	img_process im_proc;
 	Mat frame;
@@ -89,7 +89,9 @@ int main(int argc, char* argv[])
 		if (!capture.read(frame))
 		{
 			cout << "Video Reading Failure" << endl;
-			return -1;
+
+			im_proc.free_gpu();
+			return 0;
 		}
 
 		cout << endl << "Now detect frame " << currentFrame << endl;

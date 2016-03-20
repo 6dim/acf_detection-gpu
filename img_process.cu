@@ -76,8 +76,8 @@ __global__ void convert_to_luv_gpu_kernel(unsigned char *in_img, float *out_img,
 
 
 __global__ void trianguler_convolution_gpu_kernel(float *dev_I, float *dev_O,
-												  float *T0, float *T1, float *T2,
-												  int wd, int ht, float nrm, float p)
+						float *T0, float *T1, float *T2,
+						int wd, int ht, float nrm, float p)
 {
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
 	unsigned int y_pos = threadIdx.y + (blockDim.y * blockIdx.y);
@@ -139,10 +139,10 @@ __global__ void trianguler_convolution_gpu_kernel(float *dev_I, float *dev_O,
 
 
 __global__ void lin2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out_img,
-										  float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
-										  int org_wd, int org_ht, int dst_wd, int dst_ht,
-										  int n_channels, float r,
-										  int *yas_const, int *ybs_const)
+						float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
+						int org_wd, int org_ht, int dst_wd, int dst_ht,
+						int n_channels, float r,
+						int *yas_const, int *ybs_const)
 {
 
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -206,18 +206,17 @@ __global__ void lin2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out
 
 		// resample along y direction
 		if (org_ht == 2 * dst_ht) {
-				dev_C0_tmp[x_pos] = A00[x_pos] + A01[x_pos];
-				dev_C1_tmp[x_pos] = A10[x_pos] + A11[x_pos];
-				dev_C2_tmp[x_pos] = A20[x_pos] + A21[x_pos];
-	    } else if (org_ht == 3 * dst_ht) {
-				dev_C0_tmp[x_pos] = A00[x_pos] + A01[x_pos] + A02[x_pos];
-				dev_C1_tmp[x_pos] = A10[x_pos] + A11[x_pos] + A12[x_pos];
-				dev_C2_tmp[x_pos] = A20[x_pos] + A21[x_pos] + A22[x_pos];
+			dev_C0_tmp[x_pos] = A00[x_pos] + A01[x_pos];
+			dev_C1_tmp[x_pos] = A10[x_pos] + A11[x_pos];
+			dev_C2_tmp[x_pos] = A20[x_pos] + A21[x_pos];
+	    	} else if (org_ht == 3 * dst_ht) {
+			dev_C0_tmp[x_pos] = A00[x_pos] + A01[x_pos] + A02[x_pos];
+			dev_C1_tmp[x_pos] = A10[x_pos] + A11[x_pos] + A12[x_pos];
+			dev_C2_tmp[x_pos] = A20[x_pos] + A21[x_pos] + A22[x_pos];
 		} else if (org_ht == 4 * dst_ht) {
-				dev_C0_tmp[x_pos] = A00[x_pos] + A01[x_pos] + A02[x_pos] + A03[x_pos];
-				dev_C1_tmp[x_pos] = A10[x_pos] + A11[x_pos] + A12[x_pos] + A13[x_pos];
-				dev_C2_tmp[x_pos] = A20[x_pos] + A21[x_pos] + A22[x_pos] + A23[x_pos];
-
+			dev_C0_tmp[x_pos] = A00[x_pos] + A01[x_pos] + A02[x_pos] + A03[x_pos];
+			dev_C1_tmp[x_pos] = A10[x_pos] + A11[x_pos] + A12[x_pos] + A13[x_pos];
+			dev_C2_tmp[x_pos] = A20[x_pos] + A21[x_pos] + A22[x_pos] + A23[x_pos];
 		}
 
 		/* ensure that all threads have calculated the values for C until this point */
@@ -225,20 +224,17 @@ __global__ void lin2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out
 
 		// resample along x direction (B -> C)
 		if (org_wd == 2 * dst_wd) {
-				B00[x_pos]= (dev_C0_tmp[2 * x_pos] + dev_C0_tmp[(2 * x_pos) + 1]) * (r / 2);
-				B10[x_pos]= (dev_C1_tmp[2 * x_pos] + dev_C1_tmp[(2 * x_pos) + 1]) * (r / 2);
-				B20[x_pos]= (dev_C2_tmp[2 * x_pos] + dev_C2_tmp[(2 * x_pos) + 1]) * (r / 2);
-
+			B00[x_pos]= (dev_C0_tmp[2 * x_pos] + dev_C0_tmp[(2 * x_pos) + 1]) * (r / 2);
+			B10[x_pos]= (dev_C1_tmp[2 * x_pos] + dev_C1_tmp[(2 * x_pos) + 1]) * (r / 2);
+			B20[x_pos]= (dev_C2_tmp[2 * x_pos] + dev_C2_tmp[(2 * x_pos) + 1]) * (r / 2);
 		} else if (org_wd == 3 * dst_wd) {
-				B00[x_pos] = (dev_C0_tmp[3 * x_pos] + dev_C0_tmp[(3 * x_pos) + 1] + dev_C0_tmp[(3 * x_pos) + 2]) * (r / 3);
-				B10[x_pos] = (dev_C1_tmp[3 * x_pos] + dev_C1_tmp[(3 * x_pos) + 1] + dev_C1_tmp[(3 * x_pos) + 2]) * (r / 3);
-				B20[x_pos] = (dev_C2_tmp[3 * x_pos] + dev_C2_tmp[(3 * x_pos) + 1] + dev_C2_tmp[(3 * x_pos) + 2]) * (r / 3);
-
+			B00[x_pos] = (dev_C0_tmp[3 * x_pos] + dev_C0_tmp[(3 * x_pos) + 1] + dev_C0_tmp[(3 * x_pos) + 2]) * (r / 3);
+			B10[x_pos] = (dev_C1_tmp[3 * x_pos] + dev_C1_tmp[(3 * x_pos) + 1] + dev_C1_tmp[(3 * x_pos) + 2]) * (r / 3);
+			B20[x_pos] = (dev_C2_tmp[3 * x_pos] + dev_C2_tmp[(3 * x_pos) + 1] + dev_C2_tmp[(3 * x_pos) + 2]) * (r / 3);
 		} else if (org_wd == 4 * dst_wd) {
-				B00[x_pos] = (dev_C0_tmp[4 * x_pos] + dev_C0_tmp[(4 * x_pos) + 1] + dev_C0_tmp[(4 * x_pos) + 2] + dev_C0_tmp[(4 * x_pos) + 3]) * (r / 4);
-				B10[x_pos] = (dev_C1_tmp[4 * x_pos] + dev_C1_tmp[(4 * x_pos) + 1] + dev_C1_tmp[(4 * x_pos) + 2] + dev_C1_tmp[(4 * x_pos) + 3]) * (r / 4);
-				B20[x_pos] = (dev_C2_tmp[4 * x_pos] + dev_C2_tmp[(4 * x_pos) + 1] + dev_C2_tmp[(4 * x_pos) + 2] + dev_C2_tmp[(4 * x_pos) + 3]) * (r / 4);
-
+			B00[x_pos] = (dev_C0_tmp[4 * x_pos] + dev_C0_tmp[(4 * x_pos) + 1] + dev_C0_tmp[(4 * x_pos) + 2] + dev_C0_tmp[(4 * x_pos) + 3]) * (r / 4);
+			B10[x_pos] = (dev_C1_tmp[4 * x_pos] + dev_C1_tmp[(4 * x_pos) + 1] + dev_C1_tmp[(4 * x_pos) + 2] + dev_C1_tmp[(4 * x_pos) + 3]) * (r / 4);
+			B20[x_pos] = (dev_C2_tmp[4 * x_pos] + dev_C2_tmp[(4 * x_pos) + 1] + dev_C2_tmp[(4 * x_pos) + 2] + dev_C2_tmp[(4 * x_pos) + 3]) * (r / 4);
 		}
 
 		__syncthreads();
@@ -248,12 +244,12 @@ __global__ void lin2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out
 
 
 __global__ void lin2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_out_img,
-										  float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
-										  int org_wd, int org_ht, int dst_wd, int dst_ht,
-										  int n_channels, float r,
-										  int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1,
-										  int *xas_const, int *xbs_const, float *xwts_const,
-										  int *yas_const, int *ybs_const, float *ywts_const)
+						float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
+						int org_wd, int org_ht, int dst_wd, int dst_ht,
+						int n_channels, float r,
+						int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1,
+						int *xas_const, int *xbs_const, float *xwts_const,
+						int *yas_const, int *ybs_const, float *ywts_const)
 {
 
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -405,41 +401,41 @@ __global__ void lin2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 				for(x = 0; x < dst_wd; x++) {
 					xa = xas_const[x * 4];
 					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
+						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
 					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
+						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
 					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
+						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
 				}
 			} else if (xbd0 == 3) {
 				for(x = 0; x < dst_wd; x++) {
 					xa = xas_const[x * 4];
 					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						(dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						(dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						(dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 
 				}
 			} else if (xbd0 == 4) {
 				for(x = 0; x < dst_wd; x++) {
 					xa = xas_const[x * 4];
-					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0] )+
-							 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
-							 (dev_C0_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
-					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0] )+
-							 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
-							 (dev_C1_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
-					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0] )+
-							 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
-							 (dev_C2_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
+					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
+						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						(dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
+						(dev_C0_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
+					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
+						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						(dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
+						(dev_C1_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
+					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
+						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						(dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
+						(dev_C2_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
 				}
 			} else if (xbd0 > 4) {
 				for(x = 0; x < wn; x++) {
@@ -474,10 +470,10 @@ __global__ void lin2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 
 
 __global__ void int2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out_img,
-										  	   float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
-										  	   int org_wd, int org_ht, int dst_wd, int dst_ht,
-										  	   int n_channels, float r,
-										  	   int *yas_const, int *ybs_const)
+						float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
+						int org_wd, int org_ht, int dst_wd, int dst_ht,
+						int n_channels, float r,
+						int *yas_const, int *ybs_const)
 {
 
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -541,18 +537,17 @@ __global__ void int2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out
 
 		// resample along y direction
 		if (org_ht == 2 * dst_ht) {
-				dev_C0_tmp[x_pos] = A00[x_pos * n_channels] + A01[x_pos * n_channels];
-				dev_C1_tmp[x_pos] = A10[x_pos * n_channels] + A11[x_pos * n_channels];
-				dev_C2_tmp[x_pos] = A20[x_pos * n_channels] + A21[x_pos * n_channels];
-	    } else if (org_ht == 3 * dst_ht) {
-				dev_C0_tmp[x_pos] = A00[x_pos * n_channels] + A01[x_pos * n_channels] + A02[x_pos * n_channels];
-				dev_C1_tmp[x_pos] = A10[x_pos * n_channels] + A11[x_pos * n_channels] + A12[x_pos * n_channels];
-				dev_C2_tmp[x_pos] = A20[x_pos * n_channels] + A21[x_pos * n_channels] + A22[x_pos * n_channels];
+			dev_C0_tmp[x_pos] = A00[x_pos * n_channels] + A01[x_pos * n_channels];
+			dev_C1_tmp[x_pos] = A10[x_pos * n_channels] + A11[x_pos * n_channels];
+			dev_C2_tmp[x_pos] = A20[x_pos * n_channels] + A21[x_pos * n_channels];
+		} else if (org_ht == 3 * dst_ht) {
+			dev_C0_tmp[x_pos] = A00[x_pos * n_channels] + A01[x_pos * n_channels] + A02[x_pos * n_channels];
+			dev_C1_tmp[x_pos] = A10[x_pos * n_channels] + A11[x_pos * n_channels] + A12[x_pos * n_channels];
+			dev_C2_tmp[x_pos] = A20[x_pos * n_channels] + A21[x_pos * n_channels] + A22[x_pos * n_channels];
 		} else if (org_ht == 4 * dst_ht) {
-				dev_C0_tmp[x_pos] = A00[x_pos * n_channels] + A01[x_pos * n_channels] + A02[x_pos * n_channels] + A03[x_pos * n_channels];
-				dev_C1_tmp[x_pos] = A10[x_pos * n_channels] + A11[x_pos * n_channels] + A12[x_pos * n_channels] + A13[x_pos * n_channels];
-				dev_C2_tmp[x_pos] = A20[x_pos * n_channels] + A21[x_pos * n_channels] + A22[x_pos * n_channels] + A23[x_pos * n_channels];
-
+			dev_C0_tmp[x_pos] = A00[x_pos * n_channels] + A01[x_pos * n_channels] + A02[x_pos * n_channels] + A03[x_pos * n_channels];
+			dev_C1_tmp[x_pos] = A10[x_pos * n_channels] + A11[x_pos * n_channels] + A12[x_pos * n_channels] + A13[x_pos * n_channels];
+			dev_C2_tmp[x_pos] = A20[x_pos * n_channels] + A21[x_pos * n_channels] + A22[x_pos * n_channels] + A23[x_pos * n_channels];
 		}
 
 		/* ensure that all threads have calculated the values for C until this point */
@@ -560,19 +555,17 @@ __global__ void int2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out
 
 		// resample along x direction (B -> C)
 		if (org_wd == 2 * dst_wd) {
-				B00[x_pos]= (dev_C0_tmp[2 * x_pos] + dev_C0_tmp[(2 * x_pos) + 1]) * (r / 2);
-				B10[x_pos]= (dev_C1_tmp[2 * x_pos] + dev_C1_tmp[(2 * x_pos) + 1]) * (r / 2);
-				B20[x_pos]= (dev_C2_tmp[2 * x_pos] + dev_C2_tmp[(2 * x_pos) + 1]) * (r / 2);
-
+			B00[x_pos]= (dev_C0_tmp[2 * x_pos] + dev_C0_tmp[(2 * x_pos) + 1]) * (r / 2);
+			B10[x_pos]= (dev_C1_tmp[2 * x_pos] + dev_C1_tmp[(2 * x_pos) + 1]) * (r / 2);
+			B20[x_pos]= (dev_C2_tmp[2 * x_pos] + dev_C2_tmp[(2 * x_pos) + 1]) * (r / 2);
 		} else if (org_wd == 3 * dst_wd) {
-				B00[x_pos] = (dev_C0_tmp[3 * x_pos] + dev_C0_tmp[(3 * x_pos) + 1] + dev_C0_tmp[(3 * x_pos) + 2]) * (r / 3);
-				B10[x_pos] = (dev_C1_tmp[3 * x_pos] + dev_C1_tmp[(3 * x_pos) + 1] + dev_C1_tmp[(3 * x_pos) + 2]) * (r / 3);
-				B20[x_pos] = (dev_C2_tmp[3 * x_pos] + dev_C2_tmp[(3 * x_pos) + 1] + dev_C2_tmp[(3 * x_pos) + 2]) * (r / 3);
-
+			B00[x_pos] = (dev_C0_tmp[3 * x_pos] + dev_C0_tmp[(3 * x_pos) + 1] + dev_C0_tmp[(3 * x_pos) + 2]) * (r / 3);
+			B10[x_pos] = (dev_C1_tmp[3 * x_pos] + dev_C1_tmp[(3 * x_pos) + 1] + dev_C1_tmp[(3 * x_pos) + 2]) * (r / 3);
+			B20[x_pos] = (dev_C2_tmp[3 * x_pos] + dev_C2_tmp[(3 * x_pos) + 1] + dev_C2_tmp[(3 * x_pos) + 2]) * (r / 3);
 		} else if (org_wd == 4 * dst_wd) {
-				B00[x_pos] = (dev_C0_tmp[4 * x_pos] + dev_C0_tmp[(4 * x_pos) + 1] + dev_C0_tmp[(4 * x_pos) + 2] + dev_C0_tmp[(4 * x_pos) + 3]) * (r / 4);
-				B10[x_pos] = (dev_C1_tmp[4 * x_pos] + dev_C1_tmp[(4 * x_pos) + 1] + dev_C1_tmp[(4 * x_pos) + 2] + dev_C1_tmp[(4 * x_pos) + 3]) * (r / 4);
-				B20[x_pos] = (dev_C2_tmp[4 * x_pos] + dev_C2_tmp[(4 * x_pos) + 1] + dev_C2_tmp[(4 * x_pos) + 2] + dev_C2_tmp[(4 * x_pos) + 3]) * (r / 4);
+			B00[x_pos] = (dev_C0_tmp[4 * x_pos] + dev_C0_tmp[(4 * x_pos) + 1] + dev_C0_tmp[(4 * x_pos) + 2] + dev_C0_tmp[(4 * x_pos) + 3]) * (r / 4);
+			B10[x_pos] = (dev_C1_tmp[4 * x_pos] + dev_C1_tmp[(4 * x_pos) + 1] + dev_C1_tmp[(4 * x_pos) + 2] + dev_C1_tmp[(4 * x_pos) + 3]) * (r / 4);
+			B20[x_pos] = (dev_C2_tmp[4 * x_pos] + dev_C2_tmp[(4 * x_pos) + 1] + dev_C2_tmp[(4 * x_pos) + 2] + dev_C2_tmp[(4 * x_pos) + 3]) * (r / 4);
 		}
 
 		__syncthreads();
@@ -582,12 +575,12 @@ __global__ void int2lin_resmpl_good_gpu_kernel(float *dev_in_img, float *dev_out
 
 
 __global__ void int2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_out_img,
-												float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
-												int org_wd, int org_ht, int dst_wd, int dst_ht,
-												int n_channels, float r,
-												int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1,
-												int *xas_const, int *xbs_const, float *xwts_const,
-												int *yas_const, int *ybs_const, float *ywts_const)
+						float *dev_C0_tmp, float *dev_C1_tmp, float *dev_C2_tmp,
+						int org_wd, int org_ht, int dst_wd, int dst_ht,
+						int n_channels, float r,
+						int hn, int wn, int xbd0, int xbd1, int ybd0, int ybd1,
+						int *xas_const, int *xbs_const, float *xwts_const,
+						int *yas_const, int *ybs_const, float *ywts_const)
 {
 
 	unsigned int x_pos = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -657,39 +650,39 @@ __global__ void int2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 					m++;
 
 				if (m == 1) {
-						dev_C0_tmp[x_pos] = A00[x_pos * n_channels] * ywts_const[y1];
-						dev_C1_tmp[x_pos] = A10[x_pos * n_channels] * ywts_const[y1];
-						dev_C2_tmp[x_pos] = A20[x_pos * n_channels] * ywts_const[y1];
+					dev_C0_tmp[x_pos] = A00[x_pos * n_channels] * ywts_const[y1];
+					dev_C1_tmp[x_pos] = A10[x_pos * n_channels] * ywts_const[y1];
+					dev_C2_tmp[x_pos] = A20[x_pos * n_channels] * ywts_const[y1];
 				} else if (m == 2) {
-						dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A01[x_pos * n_channels] * ywts_const[y1 + 1]);
-						dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A11[x_pos * n_channels] * ywts_const[y1 + 1]);
-						dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A21[x_pos * n_channels] * ywts_const[y1 + 1]);
+					dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A01[x_pos * n_channels] * ywts_const[y1 + 1]);
+					dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A11[x_pos * n_channels] * ywts_const[y1 + 1]);
+					dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A21[x_pos * n_channels] * ywts_const[y1 + 1]);
 				} else if (m == 3) {
-						dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A01[x_pos * n_channels] * ywts_const[y1 + 1]) +
-											(A02[x_pos * n_channels] * ywts_const[y1 + 2]);
-						dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A11[x_pos * n_channels] * ywts_const[y1 + 1]) +
-											(A12[x_pos * n_channels] * ywts_const[y1 + 2]);
-						dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A21[x_pos * n_channels] * ywts_const[y1 + 1]) +
-											(A22[x_pos * n_channels] * ywts_const[y1 + 2]);
+					dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A01[x_pos * n_channels] * ywts_const[y1 + 1]) +
+							(A02[x_pos * n_channels] * ywts_const[y1 + 2]);
+					dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A11[x_pos * n_channels] * ywts_const[y1 + 1]) +
+							(A12[x_pos * n_channels] * ywts_const[y1 + 2]);
+					dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A21[x_pos * n_channels] * ywts_const[y1 + 1]) +
+							(A22[x_pos * n_channels] * ywts_const[y1 + 2]);
 				} else if (m >= 4) {
-						dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A01[x_pos * n_channels] * ywts_const[y1 + 1]) +
-											(A02[x_pos * n_channels] * ywts_const[y1 + 2]) +
-											(A03[x_pos * n_channels] * ywts_const[y1 + 3]);
-						dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A11[x_pos * n_channels] * ywts_const[y1 + 1]) +
-											(A12[x_pos * n_channels] * ywts_const[y1 + 2]) +
-											(A13[x_pos * n_channels] * ywts_const[y1 + 3]);
-						dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * ywts_const[y1 + 0]) +
-											(A21[x_pos * n_channels] * ywts_const[y1 + 1]) +
-											(A22[x_pos * n_channels] * ywts_const[y1 + 2]) +
-											(A23[x_pos * n_channels] * ywts_const[y1 + 3]);
+					dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A01[x_pos * n_channels] * ywts_const[y1 + 1]) +
+							(A02[x_pos * n_channels] * ywts_const[y1 + 2]) +
+							(A03[x_pos * n_channels] * ywts_const[y1 + 3]);
+					dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A11[x_pos * n_channels] * ywts_const[y1 + 1]) +
+							(A12[x_pos * n_channels] * ywts_const[y1 + 2]) +
+							(A13[x_pos * n_channels] * ywts_const[y1 + 3]);
+					dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * ywts_const[y1 + 0]) +
+							(A21[x_pos * n_channels] * ywts_const[y1 + 1]) +
+							(A22[x_pos * n_channels] * ywts_const[y1 + 2]) +
+							(A23[x_pos * n_channels] * ywts_const[y1 + 3]);
 				}
 
 				for (int y0 = 4; y0 < m; y0++) {
@@ -706,13 +699,13 @@ __global__ void int2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 				bool yBd = y_pos < ybd0 || y_pos >= dst_ht - ybd1;
 
 				if (yBd) {
-						dev_C0_tmp[x_pos] = A00[x_pos * n_channels];
-						dev_C1_tmp[x_pos] = A10[x_pos * n_channels];
-						dev_C2_tmp[x_pos] = A20[x_pos * n_channels];
+					dev_C0_tmp[x_pos] = A00[x_pos * n_channels];
+					dev_C1_tmp[x_pos] = A10[x_pos * n_channels];
+					dev_C2_tmp[x_pos] = A20[x_pos * n_channels];
 				} else {
-						dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * wt) + (A01[x_pos * n_channels] * wt1);
-						dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * wt) + (A11[x_pos * n_channels] * wt1);
-						dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * wt) + (A21[x_pos * n_channels] * wt1);
+					dev_C0_tmp[x_pos] = (A00[x_pos * n_channels] * wt) + (A01[x_pos * n_channels] * wt1);
+					dev_C1_tmp[x_pos] = (A10[x_pos * n_channels] * wt) + (A11[x_pos * n_channels] * wt1);
+					dev_C2_tmp[x_pos] = (A20[x_pos * n_channels] * wt) + (A21[x_pos * n_channels] * wt1);
 				}
 			}
 		}
@@ -724,38 +717,38 @@ __global__ void int2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 		// resample along x direction (B -> C)
 		if (org_wd > dst_wd) {
 			if (xbd0 == 2) {
-					xa = xas_const[x_pos * 4];
-					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
-					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
-					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+				xa = xas_const[x_pos * 4];
+				B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+				B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+				B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
 			} else if (xbd0 == 3) {
 				for(x = 0; x < dst_wd; x++) {
 					xa = xas_const[x * 4];
 					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+						 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						 (dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+						 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						 (dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-							 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-							 (dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+						 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
+						 (dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
 
 				}
 			} else if (xbd0 == 4) {
-					xa = xas_const[x_pos * 4];
-					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
-								 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
-								 (dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
-								 (dev_C0_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
-					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
-								 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
-								 (dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
-								 (dev_C1_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
-					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
-								 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
-								 (dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
-								 (dev_C2_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+				xa = xas_const[x_pos * 4];
+				B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+					(dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+					(dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+					(dev_C0_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+				B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+					(dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+					(dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+					(dev_C1_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+				B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+					(dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+					(dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+					(dev_C2_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
 
 			} else if (xbd0 > 4) {
 				for(x = 0; x < wn; x++) {
@@ -1039,10 +1032,10 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	//cudaStream_t stream[n_channels];
 
 	/* Create CUDA streams so that each channel operations can be done simultaneously */
-    /*for (int iter = 0; iter < n_channels; iter++) {
-    	cuda_ret = cudaStreamCreate(&stream[iter]);
-    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
-    }*/
+    	/*for (int iter = 0; iter < n_channels; iter++) {
+    		cuda_ret = cudaStreamCreate(&stream[iter]);
+    		if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
+    	}*/
 
 	cuda_ret = cudaDeviceSynchronize();
 
@@ -1050,16 +1043,16 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		//for (int n = 0; n < n_channels; n++)
 		{
 			int2lin_resmpl_good_gpu_kernel<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img,
-																	dev_C_temp0, dev_C_temp1, dev_C_temp2,
-																	org_wd, org_ht, dst_wd, dst_ht,
-																	n_channels, r, yas_const, ybs_const);
+										dev_C_temp0, dev_C_temp1, dev_C_temp2,
+										org_wd, org_ht, dst_wd, dst_ht,
+										n_channels, r, yas_const, ybs_const);
 
 			//resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[1]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp1,
-			//												   				 org_wd, org_ht, dst_wd, dst_ht,
-			//												   				 n_channels, 1, r, yas_const, ybs_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 1, r, yas_const, ybs_const);
 			//resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[2]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp2,
-			//												   				 org_wd, org_ht, dst_wd, dst_ht,
-			//												   				 n_channels, 2, r, yas_const, ybs_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 2, r, yas_const, ybs_const);
 
 		}
 
@@ -1089,24 +1082,24 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 		//for (int n = 0; n < n_channels; n++)
 		{
 			int2lin_resmpl_messy_gpu_kernel<<<dim_grid, dim_block>>>(in_img_gpu, dev_out_rsmpl_img,
-																	 dev_C_temp0, dev_C_temp1, dev_C_temp2,
-																	 org_wd, org_ht, dst_wd, dst_ht,
-																	 n_channels, r,
-																	 hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-																	 xas_const, xbs_const, xwts_const,
-																	 yas_const, ybs_const, ywts_const);
+										dev_C_temp0, dev_C_temp1, dev_C_temp2,
+										org_wd, org_ht, dst_wd, dst_ht,
+										n_channels, r,
+										hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+										xas_const, xbs_const, xwts_const,
+										yas_const, ybs_const, ywts_const);
 			//resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[1]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp1,
-			//												  				 org_wd, org_ht, dst_wd, dst_ht,
-			//												  				 n_channels, 1, r,
-			//												  				 hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-			//												  				 xas_const, xbs_const, xwts_const,
-			//												  				 yas_const, ybs_const, ywts_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 1, r,
+			//								hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+			//								xas_const, xbs_const, xwts_const,
+			//								yas_const, ybs_const, ywts_const);
 			//resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[2]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp2,
-			//												  				 org_wd, org_ht, dst_wd, dst_ht,
-			//												  				 n_channels, 2, r,
-			//												  				 hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-			//												  				 xas_const, xbs_const, xwts_const,
-			//												  				 yas_const, ybs_const, ywts_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 2, r,
+			//								hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+			//								xas_const, xbs_const, xwts_const,
+			//								yas_const, ybs_const, ywts_const);
 
 		}
 		/* wait for all streams to finish computing */
@@ -1149,7 +1142,7 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 	/*for (int i = 0; i < n_channels; i++) {
 		cuda_ret = cudaStreamDestroy(stream[i]);
 		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
-    }*/
+    	}*/
 
 	cuda_ret = cudaDeviceSynchronize();
 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
@@ -1165,7 +1158,7 @@ void img_process::imResample_array_int2lin_gpu(float* in_img_gpu, float* out_img
 
 
 void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, int n_channels,
-											   int org_ht, int org_wd, int dst_ht, int dst_wd, float r)
+						int org_ht, int org_wd, int dst_ht, int dst_wd, float r)
 {
 	int hn, wn;
 
@@ -1248,10 +1241,10 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	/*cudaStream_t stream[n_channels];
 
 	/* Create CUDA streams so that each channel operations can be done simultaneously */
-    /*for (int iter = 0; iter < n_channels; iter++) {
-    	cuda_ret = cudaStreamCreate(&stream[iter]);
-    	if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
-    }*/
+    	/*for (int iter = 0; iter < n_channels; iter++) {
+    		cuda_ret = cudaStreamCreate(&stream[iter]);
+    		if(cuda_ret != cudaSuccess) FATAL("Unable to create CUDA streams");
+    	}*/
 
 	cudaDeviceSynchronize();
 
@@ -1259,15 +1252,15 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 		//for (int n = 0; n < n_channels; n++)
 		{
 			lin2lin_resmpl_good_gpu_kernel<<<dim_grid, dim_block>>>(in_img_temp, dev_out_rsmpl_img,
-																   dev_C_temp0, dev_C_temp1, dev_C_temp2,
-																   org_wd, org_ht, dst_wd, dst_ht,
-																   n_channels, r, yas_const, ybs_const);
+										dev_C_temp0, dev_C_temp1, dev_C_temp2,
+										org_wd, org_ht, dst_wd, dst_ht,
+										n_channels, r, yas_const, ybs_const);
 			//resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[1]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp1,
-			//												   				 org_wd, org_ht, dst_wd, dst_ht,
-			//												   				 n_channels, 1, r, yas_const, ybs_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 1, r, yas_const, ybs_const);
 			//resample_chnl_gpu_kernel1<<<dim_grid, dim_block, 0, stream[2]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp2,
-			//												   				 org_wd, org_ht, dst_wd, dst_ht,
-			//												   				 n_channels, 2, r, yas_const, ybs_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 2, r, yas_const, ybs_const);
 
 		}
 
@@ -1297,24 +1290,24 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 		//for (int n = 0; n < n_channels; n++)
 		{
 			lin2lin_resmpl_messy_gpu_kernel<<<dim_grid, dim_block>>>(in_img_temp, dev_out_rsmpl_img,
-																	 dev_C_temp0, dev_C_temp1, dev_C_temp2,
-																	 org_wd, org_ht, dst_wd, dst_ht,
-																	 n_channels, r,
-																	 hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-																	 xas_const, xbs_const, xwts_const,
-																	 yas_const, ybs_const, ywts_const);
+										dev_C_temp0, dev_C_temp1, dev_C_temp2,
+										org_wd, org_ht, dst_wd, dst_ht,
+										n_channels, r,
+										hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+										xas_const, xbs_const, xwts_const,
+										yas_const, ybs_const, ywts_const);
 			//resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[1]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp1,
-			//												  				 org_wd, org_ht, dst_wd, dst_ht,
-			//												  				 n_channels, 1, r,
-			//												  				 hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-			//												  				 xas_const, xbs_const, xwts_const,
-			//												  				 yas_const, ybs_const, ywts_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 1, r,
+			//								hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+			//								xas_const, xbs_const, xwts_const,
+			//								yas_const, ybs_const, ywts_const);
 			//resample_chnl_gpu_kernel2<<<dim_grid, dim_block, 0, stream[2]>>>(in_img_gpu, dev_out_rsmpl_img, dev_C_temp2,
-			//												  				 org_wd, org_ht, dst_wd, dst_ht,
-			//												  				 n_channels, 2, r,
-			//												  				 hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
-			//												  				 xas_const, xbs_const, xwts_const,
-			//												  				 yas_const, ybs_const, ywts_const);
+			//								org_wd, org_ht, dst_wd, dst_ht,
+			//								n_channels, 2, r,
+			//								hn, wn, xbd[0], xbd[1], ybd[0], ybd[1],
+			//								xas_const, xbs_const, xwts_const,
+			//								yas_const, ybs_const, ywts_const);
 
 		}
 		/* wait for all streams to finish computing */
@@ -1361,7 +1354,7 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 	/*for (int i = 0; i < n_channels; i++) {
 		cuda_ret = cudaStreamDestroy(stream[i]);
 		if(cuda_ret != cudaSuccess) FATAL("Unable to destroy CUDA streams");
-    }*/
+	}*/
 
 	cuda_ret = cudaDeviceSynchronize();
 	if (cuda_ret != cudaSuccess) FATAL("Unable to launch kernel2");
@@ -1378,10 +1371,10 @@ void img_process::imResample_array_lin2lin_gpu(float* in_img, float* out_img, in
 
 void img_process::ConvTri1_gpu(float* I, float* O, int ht, int wd, int dim, float p, int s)
 {
-    const float nrm = 1.0f / ((p + 2) * (p + 2));
-    cudaError_t cuda_ret;
+	const float nrm = 1.0f / ((p + 2) * (p + 2));
+	cudaError_t cuda_ret;
 
-    float *dev_I, *dev_O, *dev_T0, *dev_T1, *dev_T2;
+	float *dev_I, *dev_O, *dev_T0, *dev_T1, *dev_T2;
 
  	cuda_ret = cudaMalloc((void **)&dev_I, sizeof(float) * (ht * wd * dim));
  	if (cuda_ret != cudaSuccess) FATAL("Unable to allocate memory");

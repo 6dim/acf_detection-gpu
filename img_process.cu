@@ -312,82 +312,70 @@ __global__ void lin2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 
 		int x = 0;
 
-		// resample along y direction
-		if (org_ht > dst_ht) {
-			int m = 1;
-			while ((y1 + m < hn) && (yb == ybs_const[y1 + m]))
-				m++;
+		if (org_wd < x_pos) {
+			// resample along y direction
+			if (org_ht > dst_ht) {
+				int m = 1;
+				while ((y1 + m < hn) && (yb == ybs_const[y1 + m]))
+					m++;
 
-			if (m == 1) {
-				for(x = 0; x < org_wd; ++x) {
-					dev_C0_tmp[x] = A00[x] * ywts_const[y1];
-					dev_C1_tmp[x] = A10[x] * ywts_const[y1];
-					dev_C2_tmp[x] = A20[x] * ywts_const[y1];
+				if (m == 1) {
+					dev_C0_tmp[x_pos] = A00[x_pos] * ywts_const[y1];
+					dev_C1_tmp[x_pos] = A10[x_pos] * ywts_const[y1];
+					dev_C2_tmp[x_pos] = A20[x_pos] * ywts_const[y1];
+				} else if (m == 2) {
+					dev_C0_tmp[x_pos] = (A00[x_pos] * ywts_const[y1 + 0]) +
+							    (A01[x_pos] * ywts_const[y1 + 1]);
+					dev_C1_tmp[x_pos] = (A10[x_pos] * ywts_const[y1 + 0]) +
+							    (A11[x_pos] * ywts_const[y1 + 1]);
+					dev_C2_tmp[x_pos] = (A20[x_pos] * ywts_const[y1 + 0]) +
+							    (A21[x_pos] * ywts_const[y1 + 1]);
+				} else if (m == 3) {
+					dev_C0_tmp[x_pos] = (A00[x_pos] * ywts_const[y1 + 0]) +
+							    (A01[x_pos] * ywts_const[y1 + 1]) +
+						   	    (A02[x_pos] * ywts_const[y1 + 2]);
+					dev_C1_tmp[x_pos] = (A10[x_pos] * ywts_const[y1 + 0]) +
+						   	    (A11[x_pos] * ywts_const[y1 + 1]) +
+						   	    (A12[x_pos] * ywts_const[y1 + 2]);
+					dev_C2_tmp[x_pos] = (A20[x_pos] * ywts_const[y1 + 0]) +
+							    (A21[x_pos] * ywts_const[y1 + 1]) +
+						   	    (A22[x_pos] * ywts_const[y1 + 2]);
+				} else if (m >= 4) {
+					dev_C0_tmp[x_pos] = (A00[x_pos] * ywts_const[y1 + 0]) +
+							    (A01[x_pos] * ywts_const[y1 + 1]) +
+							    (A02[x_pos] * ywts_const[y1 + 2]) +
+							    (A03[x_pos] * ywts_const[y1 + 3]);
+					dev_C1_tmp[x_pos] = (A10[x_pos] * ywts_const[y1 + 0]) +
+							    (A11[x_pos] * ywts_const[y1 + 1]) +
+							    (A12[x_pos] * ywts_const[y1 + 2]) +
+							    (A13[x_pos] * ywts_const[y1 + 3]);
+					dev_C2_tmp[x_pos] = (A20[x_pos] * ywts_const[y1 + 0]) +
+							    (A21[x_pos] * ywts_const[y1 + 1]) +
+							    (A22[x_pos] * ywts_const[y1 + 2]) +
+							    (A23[x_pos] * ywts_const[y1 + 3]);
 				}
-			} else if (m == 2) {
-				for(x = 0; x < org_wd; ++x) {
-					dev_C0_tmp[x] = (A00[x] * ywts_const[y1 + 0]) +
-						   (A01[x] * ywts_const[y1 + 1]);
-					dev_C1_tmp[x] = (A10[x] * ywts_const[y1 + 0]) +
-						   (A11[x] * ywts_const[y1 + 1]);
-					dev_C2_tmp[x] = (A20[x] * ywts_const[y1 + 0]) +
-						   (A21[x] * ywts_const[y1 + 1]);
-				}
-			} else if (m == 3) {
-				for(x = 0; x < org_wd; ++x) {
-					dev_C0_tmp[x] = (A00[x] * ywts_const[y1 + 0]) +
-						   	(A01[x] * ywts_const[y1 + 1]) +
-						   	(A02[x] * ywts_const[y1 + 2]);
-					dev_C1_tmp[x] = (A10[x] * ywts_const[y1 + 0]) +
-						   	(A11[x] * ywts_const[y1 + 1]) +
-						   	(A12[x] * ywts_const[y1 + 2]);
-					dev_C2_tmp[x] = (A20[x] * ywts_const[y1 + 0]) +
-							(A21[x] * ywts_const[y1 + 1]) +
-						   	(A22[x] * ywts_const[y1 + 2]);
-				}
-			} else if (m >= 4) {
-				for(x = 0; x < org_wd; ++x) {
-					dev_C0_tmp[x] = (A00[x] * ywts_const[y1 + 0]) +
-						   (A01[x] * ywts_const[y1 + 1]) +
-						   (A02[x] * ywts_const[y1 + 2]) +
-						   (A03[x] * ywts_const[y1 + 3]);
-					dev_C1_tmp[x] = (A10[x] * ywts_const[y1 + 0]) +
-						   (A11[x] * ywts_const[y1 + 1]) +
-						   (A12[x] * ywts_const[y1 + 2]) +
-						   (A13[x] * ywts_const[y1 + 3]);
-					dev_C2_tmp[x] = (A20[x] * ywts_const[y1 + 0]) +
-						   (A21[x] * ywts_const[y1 + 1]) +
-						   (A22[x] * ywts_const[y1 + 2]) +
-						   (A23[x] * ywts_const[y1 + 3]);
-				}
-			}
 
-			for (int y0 = 4; y0 < m; y0++) {
-				A01 = A00 + (y0 * org_wd);
-				A11 = A10 + (y0 * org_wd);
-				A11 = A10 + (y0 * org_wd);
-				wt1 = ywts_const[y1 + y0];
-				for(x = 0; x < org_wd; ++x) {
-					dev_C0_tmp[x] = dev_C0_tmp[x] + (A01[x] * wt1);
-					dev_C1_tmp[x] = dev_C1_tmp[x] + (A11[x] * wt1);
-					dev_C2_tmp[x] = dev_C2_tmp[x] + (A21[x] * wt1);
+				for (int y0 = 4; y0 < m; y0++) {
+					A01 = A00 + (y0 * org_wd);
+					A11 = A10 + (y0 * org_wd);
+					A11 = A10 + (y0 * org_wd);
+					wt1 = ywts_const[y1 + y0];
+					dev_C0_tmp[x_pos] = dev_C0_tmp[x_pos] + (A01[x_pos] * wt1);
+					dev_C1_tmp[x_pos] = dev_C1_tmp[x_pos] + (A11[x_pos] * wt1);
+					dev_C2_tmp[x_pos] = dev_C2_tmp[x_pos] + (A21[x_pos] * wt1);
 				}
-			}
 
-		} else {
-			bool yBd = y_pos < ybd0 || y_pos >= dst_ht - ybd1;
-
-			if (yBd) {
-				for(int tempx = 0; tempx < org_wd; ++tempx) {
-					dev_C0_tmp[tempx] = A00[tempx];
-					dev_C1_tmp[tempx] = A10[tempx];
-					dev_C2_tmp[tempx] = A20[tempx];
-				}
 			} else {
-				for(int tempx = 0; tempx < org_wd; ++tempx) {
-					dev_C0_tmp[tempx] = (A00[tempx] * wt) + (A01[tempx] * wt1);
-					dev_C1_tmp[tempx] = (A10[tempx] * wt) + (A11[tempx] * wt1);
-					dev_C2_tmp[tempx] = (A20[tempx] * wt) + (A21[tempx] * wt1);
+				bool yBd = y_pos < ybd0 || y_pos >= dst_ht - ybd1;
+
+				if (yBd) {
+					dev_C0_tmp[x_pos] = A00[x_pos];
+					dev_C1_tmp[x_pos] = A10[x_pos];
+					dev_C2_tmp[x_pos] = A20[x_pos];
+				} else {
+					dev_C0_tmp[x_pos] = (A00[x_pos] * wt) + (A01[x_pos] * wt1);
+					dev_C1_tmp[x_pos] = (A10[x_pos] * wt) + (A11[x_pos] * wt1);
+					dev_C2_tmp[x_pos] = (A20[x_pos] * wt) + (A21[x_pos] * wt1);
 				}
 			}
 		}
@@ -396,70 +384,65 @@ __global__ void lin2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 		__syncthreads();
 
 		// resample along x direction (B -> C)
-		if (org_wd > dst_wd) {
-			if (xbd0 == 2) {
-				for(x = 0; x < dst_wd; x++) {
-					xa = xas_const[x * 4];
-					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
-					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
-					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]);
+		if (x_pos < dst_wd) {
+			if (org_wd > dst_wd) {
+				if (xbd0 == 2) {
+					xa = xas_const[x_pos * 4];
+					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+				} else if (xbd0 == 3) {
+					xa = xas_const[x_pos * 4];
+					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]);
+					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]);
+					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]);
+				} else if (xbd0 == 4) {
+					xa = xas_const[x_pos * 4];
+					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+						     (dev_C0_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+						     (dev_C1_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+						     (dev_C2_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+				} else if (xbd0 > 4) {
+					for(x = 0; x < wn; x++) {
+						B00[xbs_const[x]] += dev_C0_tmp[xas_const[x]] * xwts_const[x];
+						B10[xbs_const[x]] += dev_C1_tmp[xas_const[x]] * xwts_const[x];
+						B20[xbs_const[x]] += dev_C2_tmp[xas_const[x]] * xwts_const[x];
+					}
 				}
-			} else if (xbd0 == 3) {
-				for(x = 0; x < dst_wd; x++) {
-					xa = xas_const[x * 4];
-					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						(dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
-					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						(dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
-					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						(dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+			} else {
 
+				for (x = 0; x < xbd0; x++) {
+					B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
+					B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
+					B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
 				}
-			} else if (xbd0 == 4) {
-				for(x = 0; x < dst_wd; x++) {
-					xa = xas_const[x * 4];
-					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						(dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
-						(dev_C0_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
-					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						(dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
-						(dev_C1_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
-					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						(dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]) +
-						(dev_C2_tmp[xa + 3] * xwts_const[(4 * x) + 3]);
+				for (; x < dst_wd - xbd1; x++) {
+					B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x] + dev_C0_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
+					B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x] + dev_C1_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
+					B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x] + dev_C2_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
 				}
-			} else if (xbd0 > 4) {
-				for(x = 0; x < wn; x++) {
-					B00[xbs_const[x]] += dev_C0_tmp[xas_const[x]] * xwts_const[x];
-					B10[xbs_const[x]] += dev_C1_tmp[xas_const[x]] * xwts_const[x];
-					B20[xbs_const[x]] += dev_C2_tmp[xas_const[x]] * xwts_const[x];
+				for (; x < dst_wd; x++) {
+					B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
+					B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
+					B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
 				}
-			}
-		} else {
-
-			for (x = 0; x < xbd0; x++) {
-				B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
-				B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
-				B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
-			}
-			for (; x < dst_wd - xbd1; x++) {
-				B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x] + dev_C0_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
-				B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x] + dev_C1_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
-				B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x] + dev_C2_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
-			}
-			for (; x < dst_wd; x++) {
-				B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
-				B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
-				B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
 			}
 		}
 
@@ -713,66 +696,65 @@ __global__ void int2lin_resmpl_messy_gpu_kernel(float *dev_in_img, float *dev_ou
 		/* ensure that all threads have calculated the values for C until this point */
 		__syncthreads();
 
-		if (x_pos < dst_wd)
-		// resample along x direction (B -> C)
-		if (org_wd > dst_wd) {
-			if (xbd0 == 2) {
-				xa = xas_const[x_pos * 4];
-				B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
-				B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
-				B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
-			} else if (xbd0 == 3) {
-				for(x = 0; x < dst_wd; x++) {
-					xa = xas_const[x * 4];
-					B00[x] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						 (dev_C0_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						 (dev_C0_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
-					B10[x] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						 (dev_C1_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						 (dev_C1_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
-					B20[x] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x) + 0]) +
-						 (dev_C2_tmp[xa + 1] * xwts_const[(4 * x) + 1]) +
-						 (dev_C2_tmp[xa + 2] * xwts_const[(4 * x) + 2]);
+		if (x_pos < dst_wd) {
+			// resample along x direction (B -> C)
+			if (org_wd > dst_wd) {
+				if (xbd0 == 2) {
+					xa = xas_const[x_pos * 4];
+					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) + (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]);
+				} else if (xbd0 == 3) {
+					xa = xas_const[x_pos * 4];
+					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]);
+					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]);
+					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						     (dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						     (dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]);
 
+				} else if (xbd0 == 4) {
+					xa = xas_const[x_pos * 4];
+					B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						(dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						(dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+						(dev_C0_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+					B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						(dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						(dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+						(dev_C1_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+					B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
+						(dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
+						(dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
+						(dev_C2_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
+
+				} else if (xbd0 > 4) {
+					for(int x = 0; x < wn; x++) {
+						B00[xbs_const[x]] += dev_C0_tmp[xas_const[x]] * xwts_const[x];
+						B10[xbs_const[x]] += dev_C1_tmp[xas_const[x]] * xwts_const[x];
+						B20[xbs_const[x]] += dev_C2_tmp[xas_const[x]] * xwts_const[x];
+					}
 				}
-			} else if (xbd0 == 4) {
-				xa = xas_const[x_pos * 4];
-				B00[x_pos] = (dev_C0_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
-					(dev_C0_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
-					(dev_C0_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
-					(dev_C0_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
-				B10[x_pos] = (dev_C1_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
-					(dev_C1_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
-					(dev_C1_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
-					(dev_C1_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
-				B20[x_pos] = (dev_C2_tmp[xa + 0] * xwts_const[(4 * x_pos) + 0]) +
-					(dev_C2_tmp[xa + 1] * xwts_const[(4 * x_pos) + 1]) +
-					(dev_C2_tmp[xa + 2] * xwts_const[(4 * x_pos) + 2]) +
-					(dev_C2_tmp[xa + 3] * xwts_const[(4 * x_pos) + 3]);
-
-			} else if (xbd0 > 4) {
-				for(x = 0; x < wn; x++) {
-					B00[xbs_const[x]] += dev_C0_tmp[xas_const[x]] * xwts_const[x];
-					B10[xbs_const[x]] += dev_C1_tmp[xas_const[x]] * xwts_const[x];
-					B20[xbs_const[x]] += dev_C2_tmp[xas_const[x]] * xwts_const[x];
+			} else {
+				int x = 0;
+				for (x = 0; x < xbd0; x++) {
+					B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
+					B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
+					B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
 				}
-			}
-		} else {
-
-			for (x = 0; x < xbd0; x++) {
-				B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
-				B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
-				B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
-			}
-			for (; x < dst_wd - xbd1; x++) {
-				B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x] + dev_C0_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
-				B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x] + dev_C1_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
-				B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x] + dev_C2_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
-			}
-			for (; x < dst_wd; x++) {
-				B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
-				B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
-				B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
+				for (; x < dst_wd - xbd1; x++) {
+					B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x] + dev_C0_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
+					B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x] + dev_C1_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
+					B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x] + dev_C2_tmp[xas_const[x] + 1] * (r - xwts_const[x]);
+				}
+				for (; x < dst_wd; x++) {
+					B00[x] = dev_C0_tmp[xas_const[x]] * xwts_const[x];
+					B10[x] = dev_C1_tmp[xas_const[x]] * xwts_const[x];
+					B20[x] = dev_C2_tmp[xas_const[x]] * xwts_const[x];
+				}
 			}
 		}
 

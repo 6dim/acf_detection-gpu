@@ -29,7 +29,7 @@ class acf_detect
 {
 public:
 	acf_detect(cv::Size org_sz);
-	void operator()(cv::Mat& img, vector<bb_xma>& bbs);
+	void operator()(cv::Mat& img, vector<bb_xma>& bbs, float *luv_img_gpu);
 	void chnsPyramid(float* pix_array, float* chnsPyramid); /// compute the chnsPyramid for all scales, note that the channels are linearly stored (not interleaved)
 	void chnsCompute(float* pix_array, float* chnsPyramid, cv::Size scale);
 	void GradMag (float* pix_array, float* M, float* O, int ht, int wd, int dim, bool full = false);

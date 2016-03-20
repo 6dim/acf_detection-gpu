@@ -1,8 +1,4 @@
-//
-//  cartToPolar.hpp
-//  Created by Xiaoyin Ma on 6/30/13.
-//
-//
+
 
 #ifndef _cartToPolar_hpp
 #define _cartToPolar_hpp

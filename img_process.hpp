@@ -50,6 +50,9 @@ public:
 
 	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img);
 	void rgb2luv_gpu(cv::Mat& in_img, cv::Mat& out_img, float nrm, bool useRGB = false);
+	static void imResample_array_int2lin_gpu(float* in_img, float* out_img, int n_channels, int org_ht, int org_wd, int dst_ht, int dst_wd, float r=1.0f);
+	static void imResample_array_lin2lin_gpu(float* in_img, float* out_img, int n_channels, int org_ht, int org_wd, int dst_ht, int dst_wd, float r=1.0f);
+	static void ConvTri1_gpu(float* I, float* O, int ht, int wd, int dim, float p, int s = 1);
 	void free_gpu(void);
 
 	static void imResample(cv::Mat& in_img, cv::Mat& out_img, int dheight, int dwidth, float r = 1.0f ); /// bilinear interpolation methods to resize image
@@ -60,6 +63,8 @@ public:
 	void get_pix_all_scales_int(cv::Mat& img, const vector<cv::Size>& scales, float* pix_array);    /// save all pixel values for all scales in an float array. Color channels are interleaved.
 	void get_pix_all_scales_lin(cv::Mat& img, const vector<cv::Size>& scales, float* pix_array);    /// save all pixel values for all scales in an float array. Color channels are separated
 
+	float *dev_output_luv_img; /* pointer to output image on gpu */
+
 private:
 	/// function and variables for rgb2luv conversion
 	void rgb2luv_setup(float nrm);
@@ -68,7 +73,7 @@ private:
 	float lTable[1064];
 
 	unsigned char *dev_input_img; /* pointer to input image on gpu */
-	float *dev_output_img; /* pointer to output image on gpu */
+	//float *dev_C_temp;
 
 	static void resampleCoef(int ha, int hb, int &n, int *&yas, int *&ybs, float *&wts, int bd[2], int pad=0);
 	static void ConvTri1X(float* I, float* O, int wd, float p = 7.6f, int s = 1);

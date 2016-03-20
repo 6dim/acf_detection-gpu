@@ -302,17 +302,9 @@ void acf_detect::chnsCompute(float* pix_array, float* chnsPyramid, cv::Size scal
 	float* orgPyramid = chnsPyramid_temp;
 	/// xma Channel features
 	/// 1. clolor channel, simply resample the image specified by shrink;
-	img_process::ConvTri1(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
-	//img_process::ConvTri1_gpu(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
-	ofstream file;
-	static int cnt = 0;
-	if (cnt == 0) {
-	file.open("pix_ptr_gpu");
-	for (int abc = 0; abc < org_ht*org_wd*3; abc++)
-		file << img_smooth[abc] << "\n";
-	file.close();
-	cnt++;
-	}
+	//img_process::ConvTri1(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
+	img_process::ConvTri1_gpu(pix_array, img_smooth, org_ht, org_wd, 3, convTri_p);
+	//img_process::imResample_array_lin2lin(img_smooth, chnsPyramid_temp, 3, org_ht, org_wd, dst_ht, dst_wd, 1.0f);
 	img_process::imResample_array_lin2lin_gpu(img_smooth, chnsPyramid_temp, 3, org_ht, org_wd, dst_ht, dst_wd, 1.0f);
 	chnsPyramid_temp += dst_ht*dst_wd*3;
 	float* Mag  = new float[org_ht*org_wd];
@@ -413,7 +405,7 @@ void acf_detect::GradMag(float* pix_array, float* M, float* O, int ht,int wd, in
 	float* Gx = new float[s];   /// xma x direction gradient
 	float* Gy = new float[s];   /// xma y direction gradient
 	// compute gradient magnitude and orientation for each column
-	//printf("HELLO456================\n");	
+	//printf("HELLO456================\n");
 	for(int y = 0; y < ht; ++y )
 	{
 		// compute gradients (Gx, Gy) with maximum squared magnitude (M2)

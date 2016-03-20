@@ -27,13 +27,13 @@ int main(int argc, char* argv[])
 	//ofstream outfile("bbs.txt");
 
 	VideoCapture capture(argv[1]);
-	
-    
+
+
 	if (!capture.isOpened())
 		cout << "fail to open!" << endl;
 
-	
-	
+
+
 	long totalFrameNumber = capture.get(CV_CAP_PROP_FRAME_COUNT);
 	int frame_height = capture.get(CV_CAP_PROP_FRAME_HEIGHT);
 	int frame_width = capture.get(CV_CAP_PROP_FRAME_WIDTH);
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 	{
 		cout << "End with frame" << frameToStop << endl;
 	}
-	
+
 	double rate = capture.get(CV_CAP_PROP_FPS);
 	cout << "Frame Ratio FPS:" << rate << endl;
 
@@ -66,24 +66,24 @@ int main(int argc, char* argv[])
 
 	int delay = 1;          // 1000 / rate;
 	long currentFrame = frameToStart;
-	
+
 	namedWindow("pedestrian detector", 1);
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
 	unsigned img_height = frame_height;
 	unsigned img_width  = frame_width;
-	acf_detect acf(Size(img_width, img_height));	
+	acf_detect acf(Size(img_width, img_height));
 	img_process im_proc;
-	
-	
-	
+
+
+
 	Mat img;
-	
+
 	while (!stop)
 	{
 		Mat img_luv;
@@ -98,40 +98,39 @@ int main(int argc, char* argv[])
 
 		double t = (double)getTickCount();
 		/////////////////////////////////////////////////////////////////////////////////////
-		
+
 		if (!img.data)
-		  {
-			  cout << "Image  is not loaded properly" << endl;  //handle failing images
-			  continue;                  
-		  }    
+		{
+			cout << "Image  is not loaded properly" << endl;  //handle failing images
+			continue;
+		}
 		 //im_proc.rgb2luv(img, img_luv);
 		im_proc.rgb2luv_gpu(img, img_luv);
-		 acf(img_luv, bbs, im_proc.dev_output_luv_img);
-		  
-		
+		acf(img_luv, bbs, im_proc.dev_output_luv_img);
+
+
 		//outfile << "image# " << currentFrame << "\n" ;
-		
+
 		///////////////////////////////////////////////////////////////////////////////////////
 		t = (double)getTickCount() - t;
 		printf("detection time = %gms\n", t*1000. / cv::getTickFrequency());
 		size_t i, j;
-		for(unsigned int j = 0; j < bbs.size(); ++j )
-			  {
-				  ///@xma updated to include detection score (which will be used to sort the detection result)
-				if(bbs[j].wt > 25)
-				{
+		for(unsigned int j = 0; j < bbs.size(); ++j ) {
+			///@xma updated to include detection score (which will be used to sort the detection result)
+			if(bbs[j].wt > 25)
+			{
 				// cout < "boundingboxes ," << bbs[j].x << "," << bbs[j].y << "," <<  bbs[j].wd << "," << bbs[j].ht << "," << bbs[j].wt << endl;
-				  Rect r(bbs[j].x,bbs[j].y, bbs[j].wd ,bbs[j].ht);
-				  cout << "rectangle topleft " << r.tl() << " bottom right " << r.br() << endl;
-					rectangle(img,r.tl() , r.br(),  cv::Scalar(0, 0, 255), 2);
-					//outfile << "[" << bbs[j].x << ", " << bbs[j].y << ", " << bbs[j].wd << ", " << bbs[j].ht << "]" << "\n" ;
-				}
-			//rectangle(Mat& img, Rect rec, const Scalar& color, int thickness=1, int lineType=8, int shift=0 )
+				Rect r(bbs[j].x,bbs[j].y, bbs[j].wd ,bbs[j].ht);
+				cout << "rectangle topleft " << r.tl() << " bottom right " << r.br() << endl;
+				rectangle(img,r.tl() , r.br(),  cv::Scalar(0, 0, 255), 2);
+				//outfile << "[" << bbs[j].x << ", " << bbs[j].y << ", " << bbs[j].wd << ", " << bbs[j].ht << "]" << "\n" ;
 			}
-		
+			//rectangle(Mat& img, Rect rec, const Scalar& color, int thickness=1, int lineType=8, int shift=0 )
+		}
+
 		imshow("pedestrian detector", img);
-        
-        
+
+
 		//waitKey(int delay=0)
 
 		int c = waitKey(delay);
@@ -149,10 +148,11 @@ int main(int argc, char* argv[])
 		currentFrame++;
 
 	}
-	
+
 	im_proc.free_gpu();
-//outfile.close();
-capture.release();
+
+	//outfile.close();
+	capture.release();
 	waitKey(0);
 	return 0;
 }

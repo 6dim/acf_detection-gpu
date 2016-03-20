@@ -170,16 +170,12 @@ void acf_detect::operator()(cv::Mat& img, vector<bb_xma>& bbs, float *luv_img_gp
 		int s_height = height / shrink;
 		int s_width  = width / shrink;
 		vector<bb_xma> bbs_sc; /// current scale bounding boxes
-		//printf("%d\n", i);
-		//if (height % 32 == 0 && width % 32 == 0 && img.rows % height != 0)
+		
+		//if (i % 5 == 0)
 		//	img_process::imResample_array_int2lin_gpu(luv_img_gpu, pix_ptr, img.channels(),img.rows, img.cols, height, width);
 		//else
 			img_process::imResample_array_int2lin(img_org, pix_ptr, img.channels(),img.rows, img.cols, height, width);
-		//ofstream file;
-		//file.open("pix_ptr_gpu");
-		//for (int abc = 0; abc < scales[0].height; abc++)
-		//	file << pix_ptr[abc] << "\n";
-		//file.close();
+		
 		chnsCompute(pix_ptr, chnsPyramid, sz);
 		acfDetect(chnsPyramid, s_height, s_width, nChannels, bbs_sc);
 		for(vector<bb_xma>::iterator ii = bbs_sc.begin(); ii != bbs_sc.end(); ++ii)
